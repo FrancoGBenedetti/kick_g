@@ -1,0 +1,10 @@
+{
+  "$GMScript":"v1",
+  "%Name":"scr_convert_collision_tiles",
+  "isCompatibility":false,
+  "isDnD":false,
+  "name":"scr_convert_collision_tiles",
+  "parent":{"name":"Tools","path":"folders/Scripts/Tools.yy",},
+  "resourceType":"GMScript",
+  "resourceVersion":"2.0",
+}

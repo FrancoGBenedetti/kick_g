@@ -1,0 +1,10 @@
+{
+  "$GMScript":"v1",
+  "%Name":"scr_draw_healthbar",
+  "isCompatibility":false,
+  "isDnD":false,
+  "name":"scr_draw_healthbar",
+  "parent":{"name":"UI","path":"folders/Scripts/UI.yy",},
+  "resourceType":"GMScript",
+  "resourceVersion":"2.0",
+}
