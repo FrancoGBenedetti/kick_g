@@ -1,0 +1,10 @@
+{
+  "$GMScript":"v1",
+  "%Name":"tile_solid_at",
+  "isCompatibility":false,
+  "isDnD":false,
+  "name":"tile_solid_at",
+  "parent":{"name":"Utility","path":"folders/Scripts/Utility.yy",},
+  "resourceType":"GMScript",
+  "resourceVersion":"2.0",
+}
