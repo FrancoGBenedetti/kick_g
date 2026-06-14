@@ -6,14 +6,14 @@
 // ── Tamaño base de la vista (en píxeles de mundo) ────────
 // 960×540 = 16:9, escala ×2 al port 1920×1080 (pixel-perfect puro).
 //   → 1 px de mundo = 2 px en pantalla
-//   → personaje 192×128 (visual ~118px) = 21.8% de pantalla a zoom ×1.0
+//   → personaje 256×256 (visual ~150px) = 27.8% de pantalla a zoom ×1.0
 //
 // El zoom de GAMEPLAY se aplica sobre este base con gameplay_zoom_factor.
 // La vista real durante el juego normal es base × gameplay_zoom_factor.
 //
-//   ×1.00 = pixel-perfect puro        → 960×540  (personaje 21.8%)
-//   ×1.25 = HNAD / Mega Man X4 feel   → 1200×675 (personaje 17.5%) ← default
-//   ×1.60 = boss / arena / cinematic  → 1536×864 (personaje 13.7%)
+//   ×1.00 = pixel-perfect puro        → 960×540  (personaje 27.8%)
+//   ×1.25 = HNAD / Mega Man X4 feel   → 1200×675 (personaje 22.2%) ← default
+//   ×1.60 = boss / arena / cinematic  → 1536×864 (personaje 17.4%)
 base_camera_width   = GAME_W;   // 960 — desde scr_config
 base_camera_height  = GAME_H;   // 540 — desde scr_config
 
@@ -75,11 +75,11 @@ lerp_y = 0.10;
 // offset_x > 0 → la vista se desplaza a la derecha del jugador
 // offset_y < 0 → elevado: muestra más espacio arriba (plataformas, picos)
 //
-// Con vista de gameplay 1200×675 (base×1.25) y CAM_OFFSET_Y=-50:
-//   player aparece a 675/2 + 50 = 387px desde arriba = 57% de pantalla
-//   → tercio inferior visible, ~290px de nivel bajo el jugador ✓
+// Con vista de gameplay 1200×675 (base×1.25) y CAM_OFFSET_Y=-60:
+//   player aparece a 675/2 + 60 = 397px desde arriba = 59% de pantalla
+//   Cabeza del jugador (150px) queda a ~247px del borde superior ✓
 offset_x = 0;
-offset_y = CAM_OFFSET_Y;   // -50 — desde scr_config
+offset_y = CAM_OFFSET_Y;   // -60 — desde scr_config (era -50 con sprite 72px)
 
 // ── Look-ahead horizontal ─────────────────────────────────
 // Desplaza la cámara en la dirección que mira el jugador.
