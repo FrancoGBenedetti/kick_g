@@ -4,36 +4,33 @@
 // ══════════════════════════════════════════════════════════
 
 // ── Tamaño base de la vista (en píxeles de mundo) ────────
-// 960×540 = 16:9, escala ×2 al port 1920×1080 (pixel-perfect puro).
-//   → 1 px de mundo = 2 px en pantalla
-//   → personaje 256×256 (visual ~150px) = 27.8% de pantalla a zoom ×1.0
+// 960×540 = 16:9 base pixel-perfect (1 px mundo = 2 px en puerto 1920×1080).
+// El zoom de GAMEPLAY multiplica este base con gameplay_zoom_factor.
+// La vista real durante el juego es base × gameplay_zoom_factor.
 //
-// El zoom de GAMEPLAY se aplica sobre este base con gameplay_zoom_factor.
-// La vista real durante el juego normal es base × gameplay_zoom_factor.
+// Cálculo de proporción de pantalla (player 150px visual):
+//   ×1.0   → 960×540   → player 150/540  = 27.8% — demasiado grande
+//   ×1.333 → 1280×720  → player 150/720  = 20.8% — aún grande
+//   ×1.5   → 1440×810  → player 150/810  = 18.5% — intermedio
+//   ×2.0   → 1920×1080 → player 150/1080 = 13.9% ← default (iguala feel 128×128)
+//   ×2.5   → 2400×1350 → player 150/1350 = 11.1% — muy alejado (bosses grandes)
 //
-//   ×1.00 = pixel-perfect puro        → 960×540  (personaje 27.8%) — muy cerca
-//   ×1.333 = HNAD / Mega Man X4 feel  → 1280×720 (personaje 20.8%) ← default
-//   ×1.667 = boss / arena / cinematic → 1600×900 (personaje 16.7%)
-//
-// Ajuste post-migración 256×256:
-//   Con sprites 128×128 (72px visual) la vista era 960×540 → 72/540 = 13.3%
-//   Con sprites 256×256 (150px visual) necesitamos ~1280×720 → 150/720 = 20.8%
-//   → Se usa ×1.333 como nuevo default para mantener feeling de espacio similar.
+// Base histórica: con sprite 128×128 (72px visual) y view 960×540 →
+//   72/540 = 13.3% de pantalla. Para igualar ese feel con 150px:
+//   view_h = 150/0.133 = 1128 px → factor = 1128/540 ≈ 2.09 → usar 2.0.
 base_camera_width   = GAME_W;   // 960 — desde scr_config
 base_camera_height  = GAME_H;   // 540 — desde scr_config
 
 // ── Factor de zoom del gameplay normal ────────────────────
 // Estado "en reposo" durante el juego. zoom_reset() vuelve aquí.
-// 1.0    = pixel-perfect estricto (personaje enorme en pantalla).
-// 1.333  = Mega Man X4 / HNAD feel — personaje cómodo, buen contexto de nivel.
-// Aumentar si se quiere ver más nivel; no superar 1.8 sin verificar
-// que el room sea suficientemente grande para el clamp de cámara.
-gameplay_zoom_factor = 1.333;
+// 2.0 → vista 1920×1080 → player 13.9% → feel idéntico al estándar 128×128 original.
+// Subir a 2.5+ si se quiere más distancia (verificar que el room sea suficientemente grande).
+gameplay_zoom_factor = 2.0;
 
 // Tamaño actual de la vista (interpolado cada frame por zoom_lerp).
 // No modificar directamente — se actualiza solo en End Step.
-current_camera_width  = base_camera_width  * gameplay_zoom_factor;   // 1280
-current_camera_height = base_camera_height * gameplay_zoom_factor;   // 720
+current_camera_width  = base_camera_width  * gameplay_zoom_factor;   // 1920
+current_camera_height = base_camera_height * gameplay_zoom_factor;   // 1080
 
 // Tamaño objetivo al que la cámara transiciona.
 // Modificar esto para cambiar el zoom dinámicamente.
@@ -80,11 +77,11 @@ lerp_y = 0.10;
 // offset_x > 0 → la vista se desplaza a la derecha del jugador
 // offset_y < 0 → elevado: muestra más espacio arriba (plataformas, picos)
 //
-// Con vista de gameplay 1280×720 (base×1.333) y CAM_OFFSET_Y=-80:
-//   player aparece a 720/2 + 80 = 440px desde arriba = 61% de pantalla
-//   Cabeza del jugador (150px) queda a ~290px del borde superior ✓
+// Con vista de gameplay 1920×1080 (base×2.0) y CAM_OFFSET_Y=-100:
+//   player aparece a 1080/2 + 100 = 640px desde arriba = 59% de pantalla
+//   Cabeza del jugador (150px) queda a ~490px del borde superior ✓
 offset_x = 0;
-offset_y = CAM_OFFSET_Y;   // -80 — desde scr_config (era -60 con vista 1200×675)
+offset_y = CAM_OFFSET_Y;   // -100 — desde scr_config
 
 // ── Look-ahead horizontal ─────────────────────────────────
 // Desplaza la cámara en la dirección que mira el jugador.
@@ -156,3 +153,7 @@ bounds_left   = 0;
 bounds_top    = 0;
 bounds_right  = room_width;
 bounds_bottom = room_height;
+
+// ── Debug HUD ─────────────────────────────────────────────
+// F7 en Step_0 activa/desactiva el overlay de cámara en pantalla.
+camera_debug_visible = true;   // true para ver debug al arrancar; false en producción

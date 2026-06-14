@@ -29,15 +29,15 @@
 // ── Cámara — offset y look-ahead ──────────────────────────────
 //  CAM_OFFSET_Y: desplaza el centro de la vista hacia arriba para
 //  mostrar más espacio sobre el jugador (plataformas, picos, lectura).
-//  Con GAME_H=540 y personaje de 150 px visible, vista gameplay 1280×720:
+//  Con GAME_H=540 y personaje de 150 px visible, vista gameplay 1920×1080:
 //    sin offset → personaje a 50 % de pantalla (centrado)
-//    −80 px     → personaje a 440/720 = 61 % desde arriba (tercio inferior) ✓
-//    Cabeza del personaje queda a ~290 px del borde superior → lectura cómoda.
+//    −100 px    → personaje a 640/1080 = 59 % desde arriba (tercio inferior) ✓
+//    Cabeza del personaje queda a ~490 px del borde superior → lectura cómoda.
 //
 //  CAM_LOOKAHEAD: desplazamiento horizontal máx. en la dirección de avance.
-//  Proporcional: 1280 × 0.125 = 160 px.
-#macro CAM_OFFSET_Y    -80    // px — jugador en tercio inferior del frame (era -60 con vista 1200px)
-#macro CAM_LOOKAHEAD   160    // px — look-ahead horizontal máximo (proporcional a vista 1280px)
+//  Proporcional: 1920 × 0.125 = 240 px.
+#macro CAM_OFFSET_Y   -100    // px — jugador en tercio inferior (vista 1920×1080)
+#macro CAM_LOOKAHEAD   240    // px — look-ahead horizontal máximo (proporcional a vista 1920px)
 
 // ── Tiles ──────────────────────────────────────────────────────
 #macro TILE_SIZE          64   // tamaño visual de tile — NO cambiar al migrar colisión
