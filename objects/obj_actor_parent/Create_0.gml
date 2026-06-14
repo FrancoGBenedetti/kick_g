@@ -116,7 +116,7 @@ super_armor = false;
 //   hpbar_col_bg   color del fondo (zona vacía)
 //   hpbar_col_fill color del relleno (vida restante)
 show_world_healthbar = true;
-hpbar_width          = HPBAR_WIDTH;    // 80 px — proporcional a sprites HD (desde scr_config)
+hpbar_width          = HPBAR_WIDTH;    // 90 px — proporcional a sprites 256×256 (desde scr_config)
 hpbar_height         = HPBAR_HEIGHT;   //  8 px
 hpbar_offset_y       = HPBAR_OFFSET_Y; // -20 px sobre col_top del actor
 hpbar_col_bg         = make_color_rgb( 30,  10,  10); // rojo muy oscuro

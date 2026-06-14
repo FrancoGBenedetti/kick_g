@@ -149,12 +149,12 @@ sword_damage_3 = 2;     // tercer golpe hace más daño
 //   hitbox_x: distancia horizontal en la dirección facing (× facing al spawnear)
 //   hitbox_y: desplazamiento vertical (negativo = hacia arriba)
 //
-//   Calibrado para sprite 192×192, origin=(96,191), visual ~170px.
+//   Calibrado para sprite 256×256, origin=(128,236), visual ~150px.
 //   Leído desde scr_config — ajustar allí si el sprite cambia.
 //
-//   Zona de golpe resultante (con facing=1):
-//     X: [x+20 .. x+100]  (adelante del borde derecho del collider)
-//     Y: [y-130 .. y-50]  (nivel de pecho/mano, no en el suelo)
+//   Zona de golpe resultante (con facing=1, col_right≈28):
+//     X: [x+27 .. x+109]  (adelante del borde derecho del collider)
+//     Y: [y-139 .. y-57]  (nivel de pecho/mano, no en el suelo)
 sword_hitbox_x = SWORD_HITBOX_X;   // 60 px hacia adelante
 sword_hitbox_y = SWORD_HITBOX_Y;   // -90 px (pecho/mano)
 sword_hitbox_w = SWORD_HITBOX_W;   // 80 px de ancho

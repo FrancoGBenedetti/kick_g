@@ -13,10 +13,10 @@
 //    960×540 → 1920×1080 = escala ×2  (pixel-perfect; 1 px mundo = 2 px pantalla)
 //
 //  Proporciones del personaje a esta resolución:
-//    Sprite 128×128, origin=(64,118) → altura visual ~72 px
-//    72 / 540 = 13.3 % de pantalla → zona Mega Man X4 / Have a Nice Death ✓
-//    Con zoom K (×1.25 → 675px alto): 72/675 = 10.7 % (más espacio de escenario) ✓
-//    (Sprite anterior: 192×128, ~118px visual — rescalado ×0.75 con tools/rescale_player_sprites.py)
+//    Sprite 256×256, origin=(128,236) → altura visual ~150 px (estándar 256×256)
+//    Con gameplay_zoom_factor=1.25 (vista 1200×675): 150/675 = 22.2 % de pantalla
+//    — equivale al feel original del personaje de 118 px a zoom ×1.0 ✓
+//    (Estándar anterior: 128×128, origin=(64,118), altura ~72 px)
 //
 //  Aplicar manualmente en GameMaker IDE:
 //    Game Settings › Main › Game Width=1920, Game Height=1080
@@ -29,13 +29,14 @@
 // ── Cámara — offset y look-ahead ──────────────────────────────
 //  CAM_OFFSET_Y: desplaza el centro de la vista hacia arriba para
 //  mostrar más espacio sobre el jugador (plataformas, picos, lectura).
-//  Con GAME_H=540 y personaje de 118 px visible:
+//  Con GAME_H=540 y personaje de 150 px visible, vista gameplay 1200×675:
 //    sin offset → personaje a 50 % de pantalla (centrado)
-//    −50 px     → personaje a 320/540 = 59 % desde arriba (tercio inferior) ✓
+//    −60 px     → personaje a 397/675 = 59 % desde arriba (tercio inferior) ✓
+//    Cabeza del personaje queda a ~247 px del borde superior → lectura cómoda.
 //
 //  CAM_LOOKAHEAD: desplazamiento horizontal máx. en la dirección de avance.
 //  Proporcional: 960 × 0.125 = 120 px.
-#macro CAM_OFFSET_Y    -50    // px — jugador en tercio inferior del frame
+#macro CAM_OFFSET_Y    -60    // px — jugador en tercio inferior del frame (era -50 con sprite 72px)
 #macro CAM_LOOKAHEAD   120    // px — look-ahead horizontal máximo
 
 // ── Tiles ──────────────────────────────────────────────────────
@@ -49,22 +50,23 @@
 #macro COLLISION_LAYER    "tiles_collision_32"
 
 // ── Anclas verticales del personaje (offset desde origen = pies) ─
-//  Sprite actual: 128×128 px, origin=(64, 118).
-//  Altura visual sobre los pies: ~72 px (rescalado ×0.75 desde 118 px).
-//  Hitbox física: left=48, right=80, top=46, bottom=118
-//    col_left=−16, col_right=+16, col_top=−72, col_bottom=0
-//    Área de colisión: 32×72 px (torso y piernas; cabeza fuera)
+//  Sprite estándar 256×256: origin=(128, 236), altura visual ~150 px.
+//  Hitbox recomendada (Opción B — ajustada para gameplay):
+//    bbox_left=100, bbox_right=156, bbox_top=96, bbox_bottom=236
+//    col_left=−28, col_right=+28, col_top=−140, col_bottom=0
+//    Área de colisión: 56×140 px (torso y piernas; cabeza/capa fuera)
 //
 //  Si el sprite cambia, actualizar SOLO estas macros.
 //  Todos los sistemas (arco, espada, pogo, indicador aim) leen de aquí.
 //
+//  Escala ×2 desde el estándar anterior (128×128, 72 px visual).
 //  Coordenadas: negativo = ARRIBA desde los pies, positivo = abajo.
 #macro PLAYER_FEET_Y        0    // origen — contacto con el suelo
-#macro PLAYER_KNEE_Y      -19    // rodillas  (~21 % de 72 px) — era -25
-#macro PLAYER_HIP_Y       -38    // cadera    (~42 %)           — era -50
-#macro PLAYER_CHEST_Y     -49    // pecho/mano — ancla de arma, disparo, aim (~55 %) — era -65
-#macro PLAYER_SHOULDER_Y  -68    // hombros   (~76 %)           — era -90
-#macro PLAYER_HEAD_TOP_Y  -88    // cima de cabeza (referencia visual) — era -118
+#macro PLAYER_KNEE_Y      -38    // rodillas  (~25 % de 150 px) — era -19 en 128×128
+#macro PLAYER_HIP_Y       -76    // cadera    (~51 %)            — era -38
+#macro PLAYER_CHEST_Y     -98    // pecho/mano — ancla de arma, disparo, aim (~65 %) — era -49
+#macro PLAYER_SHOULDER_Y -136    // hombros   (~91 %)            — era -68
+#macro PLAYER_HEAD_TOP_Y -176    // cima de cabeza (referencia visual) — era -88
 
 // ── Tipos de ataque (damage sources) ─────────────────────────────
 //  Asignado en cada damage source para permitir reacciones específicas.
@@ -93,29 +95,30 @@
 #macro TEAM_ENEMY    2   // disparado por un enemigo
 
 // ── Dash Slide: hitbox reducida ───────────────────────────────────
-//  col_top normal: -72 px (hitbox completa desde pies hasta hombros).
-//  col_top slide : -36 px (mitad inferior del cuerpo — permite pasar por túneles bajos).
+//  col_top normal: -140 px (hitbox completa desde pies hasta casi hombros).
+//  col_top slide : -72 px (mitad inferior del cuerpo — permite pasar por túneles bajos).
+//  Proporción mantenida ×2 desde el estándar 128×128 (era -36).
 //  Ajustar PLAYER_SLIDE_COL_TOP según el diseño de nivel:
 //    más negativo  → hitbox más alta (menos margen para túneles)
 //    menos negativo → hitbox más baja (más permisivo, solo cubre piernas)
-#macro PLAYER_SLIDE_COL_TOP  -36   // px — col_top reducido durante dash slide en suelo
+#macro PLAYER_SLIDE_COL_TOP  -72   // px — col_top reducido durante dash slide (era -36 en 128×128)
 
 // ── Offset visual del sprite (ground embedding) ────────────────
 //  El sprite se dibuja PLAYER_DRAW_OY px MÁS ABAJO que la posición física.
-//  Nota: con origin_y=118 en canvas de 128px, el sprite ya extiende
-//  10px por debajo del origen → hay embedding natural.
+//  Nota: con origin_y=236 en canvas de 256px, el sprite ya extiende
+//  20px por debajo del origen → hay embedding natural (×2 del estándar anterior).
 //  Este offset añade un desplazamiento extra para el efecto de pisada.
 //  Ajustar junto al arte del tile. 0 = sin desplazamiento adicional.
-#macro PLAYER_DRAW_OY       4    // px extra hacia abajo (verificar tras rescale)
+#macro PLAYER_DRAW_OY       8    // px extra hacia abajo — era 4 en 128×128 (×2)
 
 // ── Alcance horizontal del personaje ──────────────────────────
 //  PLAYER_HAND_REACH: distancia desde el centro al extremo de la mano.
-#macro PLAYER_HAND_REACH   34    // px hacia adelante — era 45 (×0.75)
+#macro PLAYER_HAND_REACH   68    // px hacia adelante — era 34 en 128×128 (×2)
 
 // ── Sprite de ataque 1 ────────────────────────────────────────
-//  spr_player_attack_1: 192×128 px, origin=(64,118), 10 frames, 30fps.
-//  Canvas más ancho (192 px) para dar espacio a la espada a la derecha del cuerpo.
-//  Al facing=-1 (izquierda), GM voltea alrededor de xorigin=64 → espada va a la izquierda.
+//  spr_player_attack_1: 256×256 px (estándar nuevo), origin=(128,236), 10 frames, 30fps.
+//  Canvas cuadrado con espacio para la espada a la derecha del cuerpo.
+//  Al facing=-1 (izquierda), GM voltea alrededor de xorigin=128 → espada va a la izquierda.
 //
 //  Velocidad de imagen: playbackSpeed=30 con juego a 60fps = 0.5 frames/step.
 //  10 frames / 0.5 = 20 steps totales = ataque_1_frames (20). Coinciden exactamente.
@@ -125,25 +128,28 @@
 
 // ── Hitbox de espada (combo normal) ───────────────────────────
 //  SWORD_HITBOX_Y == PLAYER_CHEST_Y → la hitbox parte del nivel de la mano.
-//  Con facing=+1: hitbox_x=x+34; el área de colisión va de x+14 a x+55.
-//  col_right=+16 → el borde izquierdo de la espada roza el borde del cuerpo ✓
-#macro SWORD_HITBOX_X      34    // px hacia adelante — era 45 (×0.75)
-#macro SWORD_HITBOX_Y     -49    // px sobre el origen (= PLAYER_CHEST_Y) — era -65
-#macro SWORD_HITBOX_W      41    // ancho total del área de golpe — era 55
-#macro SWORD_HITBOX_H      41    // alto total del área de golpe  — era 55
+//  Con facing=+1: hitbox_x=x+68; el área de colisión va de x+27 a x+109.
+//  col_right=+28 → el borde izquierdo de la espada roza el borde del cuerpo ✓
+//  Escala ×2 desde estándar 128×128 (era X=34, Y=-49, W=41, H=41).
+#macro SWORD_HITBOX_X      68    // px hacia adelante — era 34 en 128×128 (×2)
+#macro SWORD_HITBOX_Y     -98    // px sobre el origen (= PLAYER_CHEST_Y) — era -49
+#macro SWORD_HITBOX_W      82    // ancho total del área de golpe — era 41
+#macro SWORD_HITBOX_H      82    // alto total del área de golpe  — era 41
 
 // ── Hitbox de pogo / downward slash ───────────────────────────
 //  Centrada debajo de los pies; NO se multiplica por facing.
-#macro POGO_HITBOX_X        0    // centrado horizontalmente
-#macro POGO_HITBOX_Y       22    // px BAJO el origen — era 30 (×0.75)
-#macro POGO_HITBOX_W       30    // ancho del área de golpe pogo — era 40
-#macro POGO_HITBOX_H       45    // alcance vertical hacia abajo  — era 60
+//  Escala ×2 desde estándar 128×128 (era Y=22, W=30, H=45).
+#macro POGO_HITBOX_X        0    // centrado horizontalmente (sin cambio)
+#macro POGO_HITBOX_Y       44    // px BAJO el origen — era 22 en 128×128 (×2)
+#macro POGO_HITBOX_W       60    // ancho del área de golpe pogo — era 30
+#macro POGO_HITBOX_H       90    // alcance vertical hacia abajo  — era 45
 
 // ── Barra de vida flotante (world-space, actores) ─────────────
 //  Mostrada sobre los enemigos. El jugador usa barra de HUD (Draw GUI).
-#macro HPBAR_WIDTH         60    // px de ancho
-#macro HPBAR_HEIGHT         6    // px de alto
-#macro HPBAR_OFFSET_Y     -15    // px sobre col_top del actor
+//  Ajustada para ser proporcional al nuevo tamaño visual de los sprites.
+#macro HPBAR_WIDTH         90    // px de ancho — era 60 en 128×128
+#macro HPBAR_HEIGHT         8    // px de alto  — era 6
+#macro HPBAR_OFFSET_Y     -20    // px sobre col_top del actor — era -15
 
 // ── Block / Parry del jugador ──────────────────────────────────
 //  PARRY_WINDOW_FRAMES : ventana perfecta al presionar block (frames reales).
@@ -163,13 +169,14 @@
 // ── Enemigo: Espadachín ────────────────────────────────────────
 #macro ESWORDSMAN_AGGRO_RANGE      350   // px — rango de detección al jugador
 // Distancia de parada y activación de ataque.
-// Debe ser <= hitbox_offset_x + hitbox_w/2 (alcance real del golpe).
-// Fórmula: esword_hitbox_offset_x(44) + esword_hitbox_w/2(26) = 70 px alcance.
-// Usar 60 deja 10 px de margen → golpe garantizado.
-#macro ESWORDSMAN_ATTACK_STOP_DIST  60   // px horizontal — detenerse y atacar aquí
+// Ajustado levemente para compensar el mayor tamaño visual del jugador 256×256.
+// El alcance real del golpe no cambia (el enemigo es el mismo tamaño),
+// pero una distancia ligeramente mayor evita que el enemigo se solape con el sprite del jugador.
+#macro ESWORDSMAN_ATTACK_STOP_DIST  80   // px horizontal — era 60 con sprite 128×128
 // Tolerancia vertical: si el jugador está más arriba/abajo que esto, no atacar.
-// Hitbox ocupa y-39 a y+3 (offset_y=-18, h/2=21). Con 48 px cubre saltos normales.
-#macro ESWORDSMAN_ATTACK_VERT_TOL   48   // px vertical — máx diferencia de Y para atacar
+// Aumentada a ×1.5 del valor anterior para mantener el feel de combate con el jugador más alto.
+// Un jugador de 150 px tiene más "zona de combate" vertical que uno de 72 px.
+#macro ESWORDSMAN_ATTACK_VERT_TOL   72   // px vertical — era 48 con sprite 128×128 (×1.5)
 #macro ESWORDSMAN_WINDUP            30   // frames de anticipación del ataque
 #macro ESWORDSMAN_ACTIVE            12   // frames con hitbox de espada activa
 #macro ESWORDSMAN_COOLDOWN          90   // frames entre ataques
