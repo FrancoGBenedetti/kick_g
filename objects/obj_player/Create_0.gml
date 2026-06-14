@@ -44,40 +44,49 @@ spr_set = function(_spr) {
 };
 
 // ── Movimiento horizontal ─────────────────────────────────
-max_walk_speed    = 4;    // px/frame
-ground_accel      = 1.2;  // px/frame²
-ground_decel      = 1.8;  // px/frame²
-ground_turn_accel = 2.0;  // px/frame²
-air_accel         = 0.7;  // px/frame²
-air_decel         = 0.3;  // px/frame²
+// Valores ×2 del estándar 128×128 — la vista es el doble de grande,
+// el personaje también; mantener misma sensación de pantalla requiere ×2 velocidad.
+max_walk_speed    = 8;    // px/frame  (era 4)
+ground_accel      = 2.4;  // px/frame² (era 1.2)
+ground_decel      = 3.6;  // px/frame² (era 1.8)
+ground_turn_accel = 4.0;  // px/frame² (era 2.0)
+air_accel         = 1.4;  // px/frame² (era 0.7)
+air_decel         = 0.6;  // px/frame² (era 0.3)
 
 vel_x = 0;
 
+// ── Gravedad y caída (override del parent) ────────────────
+// Duplicados junto con jump_speed para mantener el arco exacto (mismos frames al apex).
+// Solo afecta al jugador — enemigos conservan grav=0.5, max_fall=14 del parent.
+grav             = 1.0;   // px/frame²  (parent default: 0.5)
+max_fall         = 28;    // px/frame   (parent default: 14)
+fall_max_default = max_fall;
+
 // ── Movimiento vertical ───────────────────────────────────
-jump_speed          = -10;
-wall_slide_max_fall = 2;
+jump_speed          = -20;   // px/frame (era -10; ×2 con grav×2 → mismos frames al apex)
+wall_slide_max_fall = 4;     // px/frame (era 2)
 
 // ── Wall jump ─────────────────────────────────────────────
-wall_jump_x           = 3;
-wall_jump_y           = -10;
-wall_jump_lock_frames = 6;
+wall_jump_x           = 6;    // px/frame (era 3; ×2)
+wall_jump_y           = -20;  // px/frame (era -10; ×2, proporcional a jump_speed)
+wall_jump_lock_frames = 6;    // frames — timing puro, sin cambio
 wallJumpLockTimer     = 0;
 wall_jump_dir         = 0;
 
 // ── Wall Dash Jump ────────────────────────────────────────
 // Ejecutado desde wallslide con dash + jump simultáneos.
 // Impulso mayor que wall jump normal; hereda momentum del dash.
-wall_dash_jump_x = 9;    // velocidad horizontal alejándose del muro (vs wall_jump_x=3)
-wall_dash_jump_y = -13;  // velocidad vertical hacia arriba (vs wall_jump_y=-10)
+wall_dash_jump_x = 18;   // px/frame (era 9; ×2)
+wall_dash_jump_y = -24;  // px/frame (era -13; ×1.85 — un poco menos de ×2 para que no se sienta excesivo)
 
 // ── Jump buffer ───────────────────────────────────────────
 jump_buffer_max = 8;
 jumpBufferTimer = 0;
 
 // ── Dash ──────────────────────────────────────────────────
-dash_speed        = 10;   // px/frame — velocidad de dash (MMX: rápido y corto)
-dash_frames       = 16;   // duración en frames (~0.27s a 60fps)  [+14% vs original]
-dash_cooldown_max = 20;   // frames hasta poder volver a dashear
+dash_speed        = 20;   // px/frame (era 10; ×2 — distancia doble en mismo tiempo)
+dash_frames       = 16;   // duración en frames (~0.27s a 60fps) — sin cambio
+dash_cooldown_max = 20;   // frames hasta poder volver a dashear — sin cambio
 dashTimer         = 0;
 dashCooldownTimer = 0;
 dash_was_grounded = false; // contexto del dash activo (para determinar estado post-dash)
@@ -112,10 +121,10 @@ can_air_dash      = true;  // se consume al dashear en el aire; se restaura al a
 //   dash_jump_grace_max debe ser siempre dash_frames + jump_buffer_max
 dash_jump_timer     = 0;    // (legacy — ya no controla el boost, se mantiene para compat)
 dash_jump_frames    = 18;   // (legacy — no se usa en nueva lógica)
-dash_jump_speed     = 9;    // techo de vel_x durante boost (walk=4, dash_speed=10)
-dash_jump_friction  = 0.2;  // rate aéreo misma dirección — decae suave al mantener dir
+dash_jump_speed     = 18;   // techo de vel_x durante boost (walk=8, dash_speed=20) (era 9)
+dash_jump_friction  = 0.2;  // rate aéreo misma dirección — sin cambio (es rate, no velocidad)
 dash_jump_grace     = 0;    // cuenta regresiva de elegibilidad; >0 = dash grounded reciente
-dash_jump_grace_max = 24;   // dash_frames(16) + jump_buffer_max(8)
+dash_jump_grace_max = 24;   // dash_frames(16) + jump_buffer_max(8) — sin cambio (frames puro)
 // ── Dash Jump (landing-based, MMX4 style) ─────────────────
 // El impulso dura hasta tocar el suelo, no un timer fijo.
 // Termina al aterrizar (IDLE/RUN), tocar pared (WALL) o iniciar nuevo dash.
@@ -272,7 +281,7 @@ aim_facing   = 1;      // dirección de apuntado actual (actualizada por _dir)
 //   down_slash_hitbox_* → geometría y posición de la hitbox
 
 has_pogo_bounced  = false;  // true en el frame en que ocurrió el rebote; se limpia para re-armar
-pogo_bounce_speed = -8;     // velocidad vertical al rebotar (neg = arriba)
+pogo_bounce_speed = -16;    // velocidad vertical al rebotar (neg = arriba) (era -8; ×2)
 bounce_count      = 0;      // cuántos rebotes encadenados en el DOWN_SLASH actual (debug + diseño futuro)
 
 // ── Pogo persistente: cooldown entre hits ────────────────
@@ -358,6 +367,9 @@ action_lock_timer = 0;    // cuenta regresiva; set en el enter hook de cada ATTA
 normal_col_top = col_top;              // captura el valor del sprite bbox (-72 típico)
 slide_col_top  = PLAYER_SLIDE_COL_TOP; // scr_config: -36 por defecto
 is_sliding     = false;
+
+// ── Debug HUD ─────────────────────────────────────────────
+player_debug_visible = false;   // F8 para activar en runtime
 
 // ── Estado de movimiento ──────────────────────────────────
 player_state = PSTATE.FALL;

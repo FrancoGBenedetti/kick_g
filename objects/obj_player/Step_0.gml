@@ -1,3 +1,8 @@
+// F8 → toggle debug HUD de movimiento en pantalla
+if (keyboard_check_pressed(vk_f8)) {
+    player_debug_visible = !player_debug_visible;
+}
+
 // ── MUERTE POR CAÍDA ──────────────────────────────────────
 // Corre antes de todo — incluso antes del control de time_scale.
 // is_dead evita que room_restart() se llame dos veces si el Step
