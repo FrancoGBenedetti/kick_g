@@ -73,6 +73,14 @@ if (keyboard_check_pressed(vk_f9)) {
     show_debug_message("Parry debug: " + string(global.debug_parry));
 }
 
+// F10: debug de colisión del jugador — dibuja bbox, probes, wall/ground detection,
+// corner correction. Requiere que obj_player tenga Draw_0 con la sección de debug.
+if (keyboard_check_pressed(vk_f10)) {
+    global.debug_collision = !variable_global_exists("debug_collision")
+                             || !global.debug_collision;
+    show_debug_message("Collision debug: " + string(global.debug_collision));
+}
+
 // F8: debug unificado de hitboxes — activa bbox/team/parry en TODAS las hitboxes.
 // Cubre: espada jugador (obj_sword_hitbox), espada enemiga (obj_enemy_sword_hitbox),
 // y todos los proyectiles (obj_projectile_parent → player arrow, enemy arrow).

@@ -368,6 +368,56 @@ normal_col_top = col_top;              // captura el valor del sprite bbox (-72 
 slide_col_top  = PLAYER_SLIDE_COL_TOP; // scr_config: -36 por defecto
 is_sliding     = false;
 
+// ── Afterimage / Ghost Trail ──────────────────────────────
+// Efecto visual durante el dash: deja copias del sprite que se desvanecen.
+// Estilo Mega Man X4 / Dead Cells. 100% por código — sin sprites extra.
+//
+// Variables ajustables:
+//   afterimage_enabled      : true/false — desactivar sin tocar otra lógica
+//   afterimage_alpha_start  : opacidad inicial de cada copia (0.0–1.0)
+//   afterimage_fade_speed   : cuánto baja el alpha por frame (mayor = desaparece más rápido)
+//                             vida en frames ≈ afterimage_alpha_start / afterimage_fade_speed
+//                             Ej: 0.65 / 0.07 ≈ 9 frames de vida
+//   afterimage_spawn_rate   : cada cuántos frames se genera una copia (menor = más copias)
+//   afterimage_color        : tinte de las copias (default: blanco azulado — estilo neon)
+//   afterimage_max          : máximo de instancias simultáneas (evita spam en slowmo)
+//
+// Para desactivar rápido en debug: obj_player.afterimage_enabled = false
+afterimage_enabled    = true;
+afterimage_alpha_start = 0.65;
+afterimage_fade_speed  = 0.07;    // vida ≈ 9 frames
+afterimage_spawn_rate  = 3;       // cada 3 frames durante el dash
+afterimage_spawn_timer = 0;       // contador interno — no modificar
+afterimage_color       = make_color_rgb(140, 200, 255);  // azul claro / neon
+afterimage_max         = 12;      // máximo simultáneo — previene leaks en slowmo
+
+// ── Función de spawn ──────────────────────────────────────
+// afterimage_spawn(): crea una copia del frame actual del player.
+// Closure: captura 'id' del player para leer sus variables de manera segura.
+// Devuelve el ID de la instancia creada (o noone si desactivado o max alcanzado).
+afterimage_spawn = function() {
+    if (!afterimage_enabled) return noone;
+
+    // Límite de instancias simultáneas (performance)
+    if (instance_number(obj_dash_afterimage) >= afterimage_max) return noone;
+
+    var _inst = instance_create_layer(x, y, "Instances_1", obj_dash_afterimage);
+
+    with (_inst) {
+        ghost_sprite = other.sprite_index;
+        ghost_frame  = other.image_index;
+        ghost_xscale = other.image_xscale;
+        ghost_yscale = other.image_yscale;
+        ghost_angle  = other.image_angle;
+        ghost_alpha  = other.afterimage_alpha_start;
+        ghost_color  = other.afterimage_color;
+        ghost_fade   = other.afterimage_fade_speed;
+        depth        = other.depth + 1;   // siempre detrás del player
+    }
+
+    return _inst;
+};
+
 // ── Debug HUD ─────────────────────────────────────────────
 player_debug_visible = false;   // F8 para activar en runtime
 
