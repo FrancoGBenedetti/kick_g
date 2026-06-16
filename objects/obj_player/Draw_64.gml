@@ -90,6 +90,15 @@ var _lines = [
     "dash_timer : " + string(dashTimer),
     "dash_jump  : " + string(dash_jump_active),
     "can_airdash: " + string(can_air_dash),
+    "",
+    "── Afterimage ──",
+    "enabled    : " + string(afterimage_enabled),
+    "active imgs: " + string(instance_number(obj_dash_afterimage)),
+    "spawn_rate : " + string(afterimage_spawn_rate) + "f",
+    "alpha_start: " + string_format(afterimage_alpha_start, 1, 2),
+    "fade_speed : " + string_format(afterimage_fade_speed,  1, 3)
+        + "  (vida ~" + string(round(afterimage_alpha_start / afterimage_fade_speed)) + "f)",
+    "max        : " + string(afterimage_max),
 ];
 
 draw_set_font(-1);

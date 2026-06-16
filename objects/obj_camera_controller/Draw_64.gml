@@ -30,7 +30,7 @@ var _lines = [
     "port         : " + string(DISPLAY_W) + "x" + string(DISPLAY_H),
     "px/world px  : " + string_format(_scale_x, 1, 2) + "x",
     "",
-    "J=960x540  K=1440x810  L=1920x1080(normal)  ;=2400x1350",
+    "J=1920x1080  K=2560x1440  L=2560x1440(normal)  F6=3200x1800(boss)",
 ];
 
 draw_set_font(-1);

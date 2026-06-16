@@ -49,6 +49,11 @@ coyote_max  = 6;      // frames disponibles al salir del suelo sin saltar
 coyoteTimer = 0;
 prev_grounded = false;
 
+// ── Corner correction ─────────────────────────────────────
+// true durante el frame en que se activó la corrección de esquina de techo.
+// Reseteado cada Step en obj_actor_parent. Usado para debug (F10).
+corner_corrected = false;
+
 // ══════════════════════════════════════════════════════════
 // SISTEMA DE SALUD Y DAÑO
 // ══════════════════════════════════════════════════════════

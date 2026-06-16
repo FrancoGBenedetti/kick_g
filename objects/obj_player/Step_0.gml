@@ -1101,6 +1101,23 @@ switch (player_state) {
 //   al aterrizar, "case air" del ground-switch transiciona a idle/run_loop.
 // ══════════════════════════════════════════════════════════
 
+// ── AFTERIMAGE SPAWN ─────────────────────────────────────
+// Genera copias fantasma durante el dash.
+// Corre ANTES de actualizar el sprite para capturar el frame del tick anterior
+// (evita parpadeo en el primer frame del dash).
+// El timer se resetea al entrar al dash y cuenta hacia 0 cada step.
+if (player_state == PSTATE.DASH && afterimage_enabled) {
+    afterimage_spawn_timer--;
+    if (afterimage_spawn_timer <= 0) {
+        afterimage_spawn();
+        afterimage_spawn_timer = afterimage_spawn_rate;
+    }
+} else if (player_state != PSTATE.DASH) {
+    // Resetear timer para que la primera copia aparezca inmediatamente
+    // en el siguiente dash (sin esperar spawn_rate frames).
+    afterimage_spawn_timer = 0;
+}
+
 // Resetear offset y tint visual cada frame; estados específicos los sobreescriben.
 draw_x_offset = 0;
 image_blend   = c_white;

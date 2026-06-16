@@ -99,7 +99,11 @@ function player_set_state(_new_state) {
             dash_jump_active = false;  // pared cancela el boost
             can_air_dash     = true;   // wallslide = contacto válido → restaurar dash aéreo
         break;
-        case PSTATE.DASH: break;
+        case PSTATE.DASH:
+            // Afterimage: resetear timer para que la primera copia
+            // aparezca en el frame 0 del dash (spawn_timer = 0 → spawn inmediato).
+            afterimage_spawn_timer = 0;
+        break;
 
         case PSTATE.BLOCK:
             // Activado en sección always de Step (responde al press de C).

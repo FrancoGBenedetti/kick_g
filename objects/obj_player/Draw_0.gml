@@ -465,6 +465,110 @@ if (debug_draw_anchors) {
 }
 
 // ══════════════════════════════════════════════════════════
+// 5b. DEBUG COLISIÓN (F10 → global.debug_collision)
+//
+// Muestra en world-space:
+//   • Bbox de colisión (verde)
+//   • Probes horizontales a lo largo del borde izq/der (cyan)
+//   • Probes verticales a lo largo del borde sup/inf (amarillo)
+//   • Probes de pared izq/der (magenta)
+//   • Estado: grounded, wallContact, wallSide, corner_corrected
+// ══════════════════════════════════════════════════════════
+if (variable_global_exists("debug_collision") && global.debug_collision) {
+    var _dc  = draw_get_color();
+    var _da  = draw_get_alpha();
+    var _STEP = 28;
+
+    // ── Bbox ─────────────────────────────────────────────
+    var _bx1 = x + col_left;
+    var _by1 = y + col_top;
+    var _bx2 = x + col_right;
+    var _by2 = y + col_bottom;
+
+    draw_set_alpha(0.20);
+    draw_set_color(isGrounded ? c_lime : c_white);
+    draw_rectangle(_bx1, _by1, _bx2, _by2, false);
+    draw_set_alpha(0.90);
+    draw_rectangle(_bx1, _by1, _bx2, _by2, true);
+
+    // ── Probes de colisión HORIZONTAL (bordes izq/der) ──
+    // Cyan = libre | Rojo = bloqueado
+    draw_set_alpha(1.0);
+    var _py = y + col_top + 1;
+    var _py_end = y + col_bottom - 1;
+    while (_py <= _py_end) {
+        var _hit_l = tile_solid_at(collision_map, x + col_left  - 1, _py);
+        var _hit_r = tile_solid_at(collision_map, x + col_right + 1, _py);
+        draw_set_color(_hit_l ? c_red : c_aqua);
+        draw_circle(x + col_left  - 1, _py, 2, false);
+        draw_set_color(_hit_r ? c_red : c_aqua);
+        draw_circle(x + col_right + 1, _py, 2, false);
+        _py = (_py >= _py_end) ? _py_end + 1 : min(_py + _STEP, _py_end);
+    }
+
+    // ── Probes de colisión VERTICAL (borde sup/inf) ─────
+    var _check_top = y + col_top - 1;
+    var _check_bot = y + col_bottom + 1;
+    var _probes_x = [x + col_left + 1, x, x + col_right - 1];
+    var _labels_x = ["L", "C", "R"];
+    for (var _pi = 0; _pi < 3; _pi++) {
+        var _px_probe = _probes_x[_pi];
+        var _hit_t = tile_solid_at(collision_map, _px_probe, _check_top);
+        var _hit_b = tile_solid_at(collision_map, _px_probe, _check_bot);
+        draw_set_alpha(1.0);
+        draw_set_color(_hit_t ? c_red : c_yellow);
+        draw_circle(_px_probe, _check_top, 2, false);
+        draw_set_color(_hit_b ? c_red : c_yellow);
+        draw_circle(_px_probe, _check_bot, 2, false);
+    }
+
+    // ── Punto de origen ───────────────────────────────────
+    draw_set_color(c_red);
+    draw_set_alpha(1.0);
+    draw_circle(x, y, 3, false);
+
+    // ── Panel de estado ───────────────────────────────────
+    var _panel_x = x + col_right + 6;
+    var _panel_y = y + col_top;
+    var _lh      = 13;
+    draw_set_halign(fa_left);
+    draw_set_valign(fa_top);
+    draw_set_color(c_black);
+    draw_set_alpha(0.55);
+    draw_rectangle(_panel_x - 2, _panel_y - 2, _panel_x + 120, _panel_y + _lh * 7, false);
+
+    draw_set_alpha(1.0);
+    var _col_states = [
+        ["grounded",     isGrounded,        c_lime,   c_fuchsia],
+        ["wallContact",  wallContact,        c_lime,   c_gray],
+        ["wall L",       (wallSide == -1),   c_aqua,   c_gray],
+        ["wall R",       (wallSide ==  1),   c_aqua,   c_gray],
+        ["corner CC",    corner_corrected,   c_yellow, c_gray],
+    ];
+    var _ty = _panel_y + 2;
+    for (var _si = 0; _si < array_length(_col_states); _si++) {
+        var _label = _col_states[_si][0];
+        var _val   = _col_states[_si][1];
+        var _c_on  = _col_states[_si][2];
+        var _c_off = _col_states[_si][3];
+        draw_set_color(_val ? _c_on : _c_off);
+        draw_text(_panel_x, _ty, _label + ": " + (_val ? "YES" : "no"));
+        _ty += _lh;
+    }
+    // move_x / move_y
+    draw_set_color(c_white);
+    draw_text(_panel_x, _ty, "mx:" + string_format(move_x,1,1)
+                            + " my:" + string_format(move_y,1,1));
+    _ty += _lh;
+    draw_text(_panel_x, _ty, "CC_MAX:8  PROBE:28px");
+
+    draw_set_color(_dc);
+    draw_set_alpha(_da);
+    draw_set_halign(fa_left);
+    draw_set_valign(fa_top);
+}
+
+// ══════════════════════════════════════════════════════════
 // 6. INDICADOR DE ARCO
 // Solo visible mientras el arco está cargado y la tecla presionada.
 // El exit aquí es INTENCIONAL — solo detiene el indicador visual.

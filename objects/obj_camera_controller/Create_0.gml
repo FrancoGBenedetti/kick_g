@@ -9,28 +9,28 @@
 // La vista real durante el juego es base × gameplay_zoom_factor.
 //
 // Cálculo de proporción de pantalla (player 150px visual):
-//   ×1.0   → 960×540   → player 150/540  = 27.8% — demasiado grande
-//   ×1.333 → 1280×720  → player 150/720  = 20.8% — aún grande
-//   ×1.5   → 1440×810  → player 150/810  = 18.5% — intermedio
-//   ×2.0   → 1920×1080 → player 150/1080 = 13.9% ← default (iguala feel 128×128)
-//   ×2.5   → 2400×1350 → player 150/1350 = 11.1% — muy alejado (bosses grandes)
+//   ×1.0   → 960×540   → player 150/540  = 27.8% — muy cerca
+//   ×2.0   → 1920×1080 → player 150/1080 = 13.9%
+//   ×2.667 → 2560×1440 → player 150/1440 = 10.4% ← default (MMX4/HNAD feel)
+//   ×3.333 → 3200×1800 → player 150/1800 =  8.3% — boss/arena grande
+//   ×4.0   → 3840×2160 → player 150/2160 =  6.9% — extremadamente alejado
 //
-// Base histórica: con sprite 128×128 (72px visual) y view 960×540 →
-//   72/540 = 13.3% de pantalla. Para igualar ese feel con 150px:
-//   view_h = 150/0.133 = 1128 px → factor = 1128/540 ≈ 2.09 → usar 2.0.
+// Referencia visual: en Mega Man X4 el personaje ocupa ~9-11% de la altura.
+// Con ×2.667 (10.4%) se logra ese feeling de personaje pequeño y controlable.
 base_camera_width   = GAME_W;   // 960 — desde scr_config
 base_camera_height  = GAME_H;   // 540 — desde scr_config
 
 // ── Factor de zoom del gameplay normal ────────────────────
 // Estado "en reposo" durante el juego. zoom_reset() vuelve aquí.
-// 2.0 → vista 1920×1080 → player 13.9% → feel idéntico al estándar 128×128 original.
-// Subir a 2.5+ si se quiere más distancia (verificar que el room sea suficientemente grande).
-gameplay_zoom_factor = 2.0;
+// 2.667 = 8/3 → vista 2560×1440 → player 10.4% → feel MMX4/metroidvania amplio.
+// Bajar a 2.0 (1920×1080) si se quiere más cerca.
+// Subir a 3.333 (3200×1800) para arenas de boss extremadamente grandes.
+gameplay_zoom_factor = 2.667;
 
 // Tamaño actual de la vista (interpolado cada frame por zoom_lerp).
 // No modificar directamente — se actualiza solo en End Step.
-current_camera_width  = base_camera_width  * gameplay_zoom_factor;   // 1920
-current_camera_height = base_camera_height * gameplay_zoom_factor;   // 1080
+current_camera_width  = base_camera_width  * gameplay_zoom_factor;   // 2560
+current_camera_height = base_camera_height * gameplay_zoom_factor;   // 1440
 
 // Tamaño objetivo al que la cámara transiciona.
 // Modificar esto para cambiar el zoom dinámicamente.
@@ -77,11 +77,11 @@ lerp_y = 0.10;
 // offset_x > 0 → la vista se desplaza a la derecha del jugador
 // offset_y < 0 → elevado: muestra más espacio arriba (plataformas, picos)
 //
-// Con vista de gameplay 1920×1080 (base×2.0) y CAM_OFFSET_Y=-100:
-//   player aparece a 1080/2 + 100 = 640px desde arriba = 59% de pantalla
-//   Cabeza del jugador (150px) queda a ~490px del borde superior ✓
+// Con vista de gameplay 2560×1440 (base×2.667) y CAM_OFFSET_Y=-180:
+//   player aparece a 1440/2 + 180 = 900px desde arriba = 62.5% de pantalla
+//   Cabeza del jugador (150px) queda a ~750px del borde superior ✓
 offset_x = 0;
-offset_y = CAM_OFFSET_Y;   // -100 — desde scr_config
+offset_y = CAM_OFFSET_Y;   // -180 — desde scr_config
 
 // ── Look-ahead horizontal ─────────────────────────────────
 // Desplaza la cámara en la dirección que mira el jugador.
