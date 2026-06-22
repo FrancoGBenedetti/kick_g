@@ -11,10 +11,9 @@ draw_self();
 if (!global.debug_enemy_attacks) exit;
 if (estate != ESTATE_AIM) exit;
 
-// ── Origen del disparo ────────────────────────────────────
-// Offset fijo desde el centro del sprite. Ajustar si el sprite cambia.
-var _ox  = x + facing * 16;
-var _oy  = y - 16;
+// ── Origen del disparo usando los offsets configurables ─────
+var _ox  = x + (facing > 0 ? col_right + projectile_spawn_offset_x : col_left - projectile_spawn_offset_x);
+var _oy  = y + projectile_spawn_offset_y;
 
 // ── Dirección de la flecha ─────────────────────────────────
 var _rad = degtorad(aim_angle);
@@ -26,7 +25,12 @@ var _ey  = _oy + _len * sin(_rad);
 draw_set_alpha(0.8);
 draw_set_color(c_yellow);
 draw_line_width(_ox, _oy, _ex, _ey, 3);
-draw_circle(_ox, _oy, 4, false);
+draw_circle(_ox, _oy, 6, false);   // círculo del spawn
+
+// ── Punto de referencia del cuerpo (para comparar) ─────────
+draw_set_color(c_aqua);
+draw_set_alpha(0.4);
+draw_circle(x, y, 3, false);
 
 // ── Reset render state ────────────────────────────────────
 draw_set_alpha(1.0);

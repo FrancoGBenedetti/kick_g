@@ -1,0 +1,10 @@
+{
+  "$GMScript":"v1",
+  "%Name":"scr_hide_collision_layer",
+  "isCompatibility":false,
+  "isDnD":false,
+  "name":"scr_hide_collision_layer",
+  "parent":{"name":"Tools","path":"folders/Scripts/Tools.yy",},
+  "resourceType":"GMScript",
+  "resourceVersion":"2.0",
+}

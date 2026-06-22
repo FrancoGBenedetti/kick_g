@@ -19,18 +19,24 @@ can_patrol    = true;    // patrulla cuando no hay jugador
 can_chase     = true;    // persigue al jugador
 can_drop_down = true;    // puede caer por bordes buscando al jugador
 
+// El swordsman daña con su arma (hitbox), no con el cuerpo.
+// Desactivar para evitar daño por colisión corporal antes/durante el ataque.
+contact_damage_enabled = false;
+
 // ── Rango y velocidad ─────────────────────────────────────
 detection_range = ESWORDSMAN_AGGRO_RANGE;   // px circular — legado
 chase_speed     = 3;     // px/frame — más rápido que la patrulla
 
-// Distancia horizontal a la que el enemigo se detiene y ataca.
-// Calculada para que la hitbox real conecte: offset_x + w/2 - margen = 60 px.
-// Si se ajusta la hitbox (esword_hitbox_offset_x / esword_hitbox_w), recalcular aquí.
-attack_stop_distance     = ESWORDSMAN_ATTACK_STOP_DIST;   // px horizontal
-attack_vertical_tolerance = ESWORDSMAN_ATTACK_VERT_TOL;   // px vertical
+// Rango de ataque en dos fases:
+//   attack_trigger_distance: el enemigo "decide" atacar y entra en WINDUP.
+//                            Si el jugador sigue lejos, avanza mientras anima el windup.
+//   attack_stop_distance:    se detiene aquí para contar el timer y disparar la hitbox.
+//                            La hitbox llega a ~76 px — asegura que el golpe conecta.
+attack_trigger_distance  = ESWORDSMAN_ATTACK_TRIGGER_DIST; // px horizontal — detección
+attack_stop_distance     = ESWORDSMAN_ATTACK_STOP_DIST;    // px horizontal — hitbox range
+attack_vertical_tolerance = ESWORDSMAN_ATTACK_VERT_TOL;    // px vertical
 
-// stop_distance: usado en CHASE para no empujar al jugador.
-// Igual a attack_stop_distance para que el enemigo siempre se acerque a rango válido.
+// stop_distance: CHASE no empuja al jugador cuando llega a rango de hitbox.
 stop_distance = ESWORDSMAN_ATTACK_STOP_DIST;
 
 // ── Rangos de aggro 2D (sobreescriben defaults del parent) ────
@@ -56,31 +62,45 @@ enemy_damage         = ESWORDSMAN_DAMAGE;    // daño por golpe
 // Ajuste fino: si el enemigo entró en WINDUP pero el jugador se alejó
 // más de esta distancia durante el windup, cancelar el ataque.
 // Evita que el golpe salga en el aire si el jugador retrocede rápido.
-attack_cancel_dist = attack_stop_distance + 24;   // px — margen generoso
+attack_cancel_dist = attack_trigger_distance + 32; // px — cancela si el jugador se aleja mucho durante el windup
 
 // ── Hitbox de espada ──────────────────────────────────────
-// Posición relativa al origen del enemigo (afectada por facing).
-// Ajustar tras asignar el sprite definitivo.
-sword_hitbox_id       = noone;
-esword_hitbox_offset_x = 44;   // px hacia adelante (× facing al reposicionar)
-esword_hitbox_offset_y = -18;  // px hacia arriba del origen
-esword_hitbox_w        = 52;   // ancho del área de golpe
-esword_hitbox_h        = 42;   // alto del área de golpe
+// Se extiende desde el origen del enemigo hasta attack_trigger_distance.
+// Centrado en offset_x para cubrir el rango completo de ataque.
+// Cuando facing=1: [0, trigger_dist]
+// Cuando facing=-1: [-trigger_dist, 0]
+sword_hitbox_id        = noone;
+esword_hitbox_offset_x = ESWORDSMAN_HITBOX_OFFSET_X;  // centro del hitbox = trigger_dist / 2
+esword_hitbox_offset_y = ESWORDSMAN_HITBOX_OFFSET_Y;  // altura media del enemigo
+esword_hitbox_w        = ESWORDSMAN_HITBOX_W;         // ancho = trigger_dist (cubre todo el rango)
+esword_hitbox_h        = ESWORDSMAN_HITBOX_H;         // alto = torso + piernas jugador
 
 // ── Override de on_damage ─────────────────────────────────
+// Captura el método del parent (blink, knockback, hitstun, i-frames)
+// como variable de instancia antes de reemplazarlo, para poder encadenarlo.
+// Se usa variable de instancia (no var) porque los closures de GML no capturan
+// vars locales del evento Create de forma confiable.
+parent_on_damage = on_damage;
+
 on_damage = function(_amount, _source) {
-    reacquire_timer = reacquire_wait_max;
-    // Destruir hitbox activa si el enemigo es golpeado durante el ataque
+    // ── Lógica compartida del parent ──────────────────────
+    // Activa blink, ajusta knockback/hitstun/i-frames, reacquire_timer.
+    parent_on_damage(_amount, _source);
+
+    // ── Swordsman: limpiar hitbox activa ──────────────────
+    // Si el enemigo recibe daño mientras su hitbox está activa,
+    // destruirla para evitar que el jugador reciba daño durante el knockback.
     if (instance_exists(sword_hitbox_id)) {
         with (sword_hitbox_id) instance_destroy();
         sword_hitbox_id = noone;
     }
-    // Interrumpir windup/ataque activo → volver a CHASE
+
+    // ── Swordsman: cancelar windup/ataque activo ──────────
+    // Interrumpir ataque si el enemigo fue golpeado durante la animación.
+    // Vuelve a CHASE para que la IA retome persecución al salir del hitstun.
     if (estate == ESTATE_ATTACK_WINDUP || estate == ESTATE_ATTACK_ACTIVE) {
         estate              = ESTATE_CHASE;
         attack_windup_timer = 0;
         attack_active_timer = 0;
     }
-    show_debug_message("[DBG] SWORDSMAN on_damage: hp=" + string(hp)
-        + "  hitstun=" + string(hitstun_timer));
 };

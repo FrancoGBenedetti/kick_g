@@ -117,8 +117,8 @@ switch (estate) {
         if (aim_timer <= 0) {
             // ── DISPARO ───────────────────────────────────────
             var _enemy_id = id;
-            var _spawn_x  = x + (facing > 0 ? col_right + 8 : col_left - 8);
-            var _spawn_y  = y - 24;   // altura aproximada de pecho — ajustar con sprite
+            var _spawn_x  = x + (facing > 0 ? col_right + projectile_spawn_offset_x : col_left - projectile_spawn_offset_x);
+            var _spawn_y  = y + projectile_spawn_offset_y;
 
             var _arrow = instance_create_layer(_spawn_x, _spawn_y, "Instances_2", obj_enemy_arrow);
             with (_arrow) {
@@ -129,6 +129,16 @@ switch (estate) {
                 // vel_y: velocidad × sin(ángulo)  (negativo = arriba en coords de pantalla)
                 vel_x = _enemy_id.facing * _enemy_id.arrow_speed * cos(_rad);
                 vel_y = _enemy_id.arrow_speed * sin(_rad);
+            }
+
+            // ── Debug: mostrar punto de spawn de flecha ──────
+            if (variable_global_exists("debug_projectiles") && global.debug_projectiles) {
+                show_debug_message("[DBG-PROJECTILE] ARCHER disparó desde: x=" + string(_spawn_x)
+                    + " y=" + string(_spawn_y)
+                    + "  angle=" + string(aim_angle)
+                    + "  facing=" + string(facing)
+                    + "  offset_x=" + string(projectile_spawn_offset_x)
+                    + "  offset_y=" + string(projectile_spawn_offset_y));
             }
 
             show_debug_message("[DBG] ARCHER disparó: angle=" + string(aim_angle)

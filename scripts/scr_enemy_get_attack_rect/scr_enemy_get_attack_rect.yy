@@ -1,0 +1,10 @@
+{
+  "$GMScript":"v1",
+  "%Name":"scr_enemy_get_attack_rect",
+  "isCompatibility":false,
+  "isDnD":false,
+  "name":"scr_enemy_get_attack_rect",
+  "parent":{"name":"Tools","path":"folders/Scripts/Tools.yy",},
+  "resourceType":"GMScript",
+  "resourceVersion":"2.0",
+}

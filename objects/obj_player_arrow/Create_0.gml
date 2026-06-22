@@ -50,6 +50,11 @@ is_aerial    = false; // true si se disparó en el aire (para mecánicas futuras
 
 // ── Hook de impacto ───────────────────────────────────────
 on_hit = function(_target) {
+    // Recarga de energía por flecha con hit confirmado.
+    // Verificar instance_exists(owner): la flecha puede existir sin owner válido.
+    if (instance_exists(owner)) {
+        owner.gain_super_energy(owner.arrow_hit_energy_gain);
+    }
     // Futuro: partículas proporcionales a charge_level
     // Futuro: audio_play_sound(snd_arrow_hit, 0, false)
 };

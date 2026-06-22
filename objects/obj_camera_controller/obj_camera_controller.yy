@@ -10,7 +10,10 @@
   "managed":true,
   "name":"obj_camera_controller",
   "overriddenProperties":[],
-  "parent":{"name":"Managers","path":"folders/Objects/Managers.yy",},
+  "parent":{
+    "name":"Managers",
+    "path":"folders/Objects/Managers.yy",
+  },
   "parentObjectId":null,
   "persistent":false,
   "physicsAngularDamping":0.1,

@@ -38,7 +38,9 @@ if (!is_dead && y > room_height + 200) {
 var _sword_busy = (player_state == PSTATE.ATTACK_1
                 || player_state == PSTATE.ATTACK_2
                 || player_state == PSTATE.ATTACK_3
-                || player_state == PSTATE.DOWN_SLASH);
+                || player_state == PSTATE.DOWN_SLASH
+                || player_state == PSTATE.DASH_ATTACK
+                || player_state == PSTATE.COUNTER_ATTACK);
 var _bow_busy   = bow_is_charging;   // cubre carga + pending-release
 var _block_busy = (player_state == PSTATE.BLOCK);
 
@@ -102,6 +104,12 @@ if (parry_success_timer > 0) {
     parry_success = false;
 }
 
+// ── parry popup timer (frames reales) ─────────────────────
+if (parry_popup_timer > 0) parry_popup_timer--;
+
+// ── Air sword bounce flash timer (frames reales) ──────────
+if (air_sword_bounce_flash_timer > 0) air_sword_bounce_flash_timer--;
+
 // Decrementar cooldown del parry (tiempo real)
 if (parry_cooldown_timer > 0) parry_cooldown_timer--;
 
@@ -139,7 +147,7 @@ if (global.inp.attack_pressed && ability_sword && !_bow_busy && !_block_busy
 //   inmediatamente y el arco comienza. Funciona en suelo y en aire.
 if (global.inp.ranged_pressed && ability_bow && !_bow_busy && bow_cooldown_timer <= 0
     && action_lock_timer <= 0 && !_block_busy
-    && player_state != PSTATE.WALL) {
+    && player_state != PSTATE.WALL && player_can_bow()) {
 
     // ── Dash cancel → arco ────────────────────────────────
     if (player_state == PSTATE.DASH) {
@@ -197,14 +205,28 @@ if (bow_is_charging && global.inp.ranged_held) {
     }
 }
 
+// ── COUNTER WINDOW TIMER (tiempo real) ───────────────────
+// Decrementado en always para que el jugador tenga tiempo real
+// de reaccionar durante el slow-mo post-parry.
+// Cuando expira: limpiar ventana de counter.
+if (counterattack_timer > 0) {
+    counterattack_timer--;
+    if (counterattack_timer <= 0) {
+        can_counterattack = false;
+        counter_target    = noone;
+    }
+}
+
 // ── SLOW MOTION ───────────────────────────────────────────
 // Fuentes de slow-mo (tiempo real, sección always):
 //   1. Arco cargado en el aire (bow_is_charging aéreo)
 //   2. Parry perfecto exitoso (parry_slow_timer)
+//   3. Ventana de counter activa (can_counterattack + counterattack_timer)
+//      → mantiene slow-mo hasta que el jugador decida o la ventana expire.
 //
 // parry_slow_timer: check ANTES de decrementar para que el último frame
 // de slow-mo sea efectivo (evita off-by-one).
-var _parry_slow = (parry_slow_timer > 0);
+var _parry_slow = (parry_slow_timer > 0) || (can_counterattack && counterattack_timer > 0);
 if (parry_slow_timer > 0) parry_slow_timer--;
 
 if ((bow_is_charging && !isGrounded && global.inp.ranged_held) || _parry_slow) {
@@ -216,6 +238,16 @@ if ((bow_is_charging && !isGrounded && global.inp.ranged_held) || _parry_slow) {
 // ── JUMP BUFFER ───────────────────────────────────────────
 // Capturado en always para no perder taps durante slowmo.
 if (_want_jump) jumpBufferTimer = jump_buffer_max;
+
+// ── INVULNERABILITY BLINK ────────────────────────────────
+// Parpadeo visual durante i-frames. Corre en always (tiempo real)
+// para que el blink sea visible incluso en cámara lenta.
+// blink_interval = 4 → alterna cada 4 frames ≈ 15 parpadeos/segundo.
+if (is_invulnerable) {
+    image_alpha = ((invuln_timer div blink_interval) mod 2 == 0) ? 0.35 : 1.0;
+} else {
+    image_alpha = 1.0;
+}
 
 // ── DEBUG: tecla H → daño directo ────────────────────────
 // Simula un golpe recibido sin necesitar un enemigo en escena.
@@ -266,7 +298,9 @@ if (hitstun_timer > 0) {
 var _in_attack = (player_state == PSTATE.ATTACK_1
                || player_state == PSTATE.ATTACK_2
                || player_state == PSTATE.ATTACK_3
-               || player_state == PSTATE.DOWN_SLASH);
+               || player_state == PSTATE.DOWN_SLASH
+               || player_state == PSTATE.DASH_ATTACK
+               || player_state == PSTATE.COUNTER_ATTACK);
 
 // ── ARCO: ajuste de ángulo de apuntado ───────────────────
 // Corre en gated: el ajuste respeta time_scale.
@@ -369,7 +403,43 @@ var _can_attack = !_in_attack
                && player_state != PSTATE.WALL
                && player_state != PSTATE.BLOCK  // no atacar durante block/parry
                && combo_cooldown_timer <= 0      // cooldown post-combo
-               && !_bow_busy;                    // bloqueo mutuo: no espada durante arco
+               && !_bow_busy                     // bloqueo mutuo: no espada durante arco
+               && player_can_attack();           // bloquea durante damage_recovery_lock
+
+// ── COUNTER ATTACK: activar desde ventana de parry ───────
+// Prioridad alta: si can_counterattack y el jugador presiona ataque,
+// se lanza el counter automático independientemente del estado actual
+// (siempre que no esté en dash, arco, wallslide o ya atacando).
+// El counter cancela el slow-mo (en el enter hook de COUNTER_ATTACK).
+// No activa durante DASH (el dash attack tiene su propio bloque).
+if (can_counterattack && ability_counterattack && attack_buffer
+&&  instance_exists(counter_target)
+&&  !_in_attack && !_bow_busy
+&&  player_state != PSTATE.WALL
+&&  player_state != PSTATE.DASH
+&&  player_state != PSTATE.BLOCK) {
+    player_set_state(PSTATE.COUNTER_ATTACK);
+    _in_attack = true;
+}
+
+// ── DASH ATTACK: entrada ──────────────────────────────────
+// Si el jugador presiona ataque DURANTE un dash activo, en vez de cancelar
+// el dash se mantiene la velocidad y se activa un ataque de mayor daño.
+// Solo una vez por dash (dash_attack_used).
+// No interfiere con down_slash: si aim_down_held + aerial, ese bloque tiene prioridad.
+if (attack_buffer && player_state == PSTATE.DASH) {
+    var _can_dash_attack = !dash_attack_used
+                        && !_bow_busy
+                        && ability_sword
+                        && !(ability_downward_slash && !isGrounded && global.inp.aim_down_held);
+    if (_can_dash_attack) {
+        player_set_state(PSTATE.DASH_ATTACK);
+        _in_attack = true;
+    } else {
+        // Ya usó el dash attack este dash, consumir buffer silenciosamente.
+        attack_buffer = false;
+    }
+}
 
 // ── DOWN_SLASH: entrada ───────────────────────────────────
 // En el aire + ↓ (aim_down_held) + Z → pogo attack.
@@ -437,7 +507,7 @@ if (player_state == PSTATE.WALL
 // Nota: el arco bloquea el dash para evitar cancelar la carga accidentalmente.
 // Si en el futuro se quiere permitir "dash cancela arco", eliminar !_bow_busy aquí.
 if (ability_dash && _want_dash && dashCooldownTimer == 0
-    && player_state != PSTATE.DASH && !_in_attack && !_bow_busy && !_block_busy) {
+    && player_state != PSTATE.DASH && !_in_attack && !_bow_busy && !_block_busy && player_can_dash()) {
     // Air dash requiere ability_air_dash además de ability_dash.
     var _can_dash = isGrounded || (can_air_dash && ability_air_dash);
     if (_can_dash) {
@@ -453,6 +523,7 @@ if (ability_dash && _want_dash && dashCooldownTimer == 0
         dashTimer         = dash_frames;
         dashCooldownTimer = dash_cooldown_max;
         jumpBufferTimer   = 0;
+        dash_attack_used  = false;
         if (!isGrounded) can_air_dash = false;
         player_set_state(PSTATE.DASH);
         _in_attack = false;
@@ -485,6 +556,18 @@ switch (player_state) {
         // Durante DOWN_SLASH el jugador cae libremente sobre el objetivo.
         // La desaceleración horizontal se gestiona en la sección vel_x (_in_attack).
     break;
+
+    case PSTATE.DASH_ATTACK:
+        // Neutralizar gravedad igual que DASH para que el ataque sea horizontal.
+        move_y = -grav;
+        attack_timer--;
+    break;
+
+    case PSTATE.COUNTER_ATTACK:
+        // Neutralizar gravedad: el dash de counter es siempre horizontal.
+        move_y = -grav;
+        attack_timer--;
+    break;
 }
 
 // ── VELOCIDAD HORIZONTAL ──────────────────────────────────
@@ -505,6 +588,24 @@ if (wallJumpLockTimer > 0) {
 
     vel_x = facing * dash_speed;
 
+} else if (player_state == PSTATE.DASH_ATTACK) {
+
+    // Mantiene la velocidad del dash durante el dash attack.
+    vel_x = facing * dash_speed;
+
+} else if (player_state == PSTATE.COUNTER_ATTACK) {
+
+    // Dash automático hacia el target. Si el target ya no existe,
+    // continuar en la dirección de facing hasta que expire el timer.
+    if (instance_exists(counter_target)) {
+        var _cdir = sign(counter_target.x - x);
+        if (_cdir == 0) _cdir = facing;
+        facing = _cdir;
+        vel_x  = _cdir * counter_dash_speed;
+    } else {
+        vel_x = facing * counter_dash_speed;
+    }
+
 } else if (_in_attack) {
 
     // Durante el ataque: desaceleración rápida en suelo, mantener
@@ -517,6 +618,23 @@ if (wallJumpLockTimer > 0) {
         }
     }
     // En el aire no se acepta input direccional — momentum conservado.
+
+} else if (damage_recovery_lock) {
+
+    // ── DAMAGE RECOVERY: bloqueo total de movimiento ────────
+    // El jugador acaba de recibir daño y está en i-frames.
+    // No puede moverse, pero la física (gravedad, knockback) sigue activa.
+    // En suelo: desacelerar a cero.
+    // En aire:  conservar velocidad pero sin aceptar input (knockback sigue).
+    if (isGrounded) {
+        if (abs(vel_x) <= ground_decel) {
+            vel_x = 0;
+        } else {
+            vel_x -= sign(vel_x) * ground_decel;
+        }
+    }
+    // Aire: vel_x se conserva (incluye knockback), sin nuevo input.
+    var _dir = 0;  // bloquear input
 
 } else if (bow_is_charging) {
 
@@ -708,7 +826,7 @@ if (is_aiming) {
 // ── ESPADA: procesar estado de ataque (combo normal) ─────
 // Corre DESPUÉS de event_inherited() para que isGrounded esté actualizado.
 // DOWN_SLASH tiene su propio bloque de procesamiento más abajo.
-if (_in_attack && player_state != PSTATE.DOWN_SLASH) {
+if (_in_attack && player_state != PSTATE.DOWN_SLASH && player_state != PSTATE.DASH_ATTACK) {
 
     // ── Lookup de parámetros del golpe actual ─────────────
     // Valores por estado — sin ternarios encadenados para compatibilidad GML.
@@ -760,6 +878,10 @@ if (_in_attack && player_state != PSTATE.DOWN_SLASH) {
             hitbox_offset_y = _player_id.sword_hitbox_y;
             hitbox_w        = _player_id.sword_hitbox_w;
             hitbox_h        = _player_id.sword_hitbox_h;
+            // Energía: suelo vs aire
+            energy_gain_amount = _player_id.isGrounded
+                                 ? _player_id.sword_hit_energy_gain
+                                 : _player_id.air_sword_hit_energy_gain;
         }
     }
 
@@ -801,6 +923,67 @@ if (_in_attack && player_state != PSTATE.DOWN_SLASH) {
         if (combo_step == 3) {
             combo_cooldown_timer = combo_cooldown_frames;
         }
+    }
+}
+
+// ── ESPADA: dash attack ───────────────────────────────────
+// Hitbox única en el primer frame; attack_timer se decrementa en el switch pre-física.
+// Al expirar el timer → transición según suelo/aire.
+if (player_state == PSTATE.DASH_ATTACK) {
+    // Spawn hitbox en el primer frame (attack_timer == attack_1_frames al entrar)
+    if (!instance_exists(sword_hitbox_id)) {
+        var _hb = instance_create_layer(
+            x + sword_hitbox_x * facing,
+            y + sword_hitbox_y,
+            "Instances_2",
+            obj_sword_hitbox
+        );
+        _hb.owner              = id;
+        _hb.damage             = sword_damage_1 * dash_attack_damage_mult;
+        _hb.hitbox_offset_x    = sword_hitbox_x * facing;
+        _hb.hitbox_offset_y    = sword_hitbox_y;
+        _hb.hitbox_w           = sword_hitbox_w;
+        _hb.hitbox_h           = sword_hitbox_h;
+        _hb.lifetime           = attack_1_hitbox_frames;
+        _hb.energy_gain_amount = sword_hit_energy_gain;   // dash attack = mismo que espada suelo
+        sword_hitbox_id        = _hb;
+    }
+
+    // Transición al expirar el timer (decrementado en switch pre-física)
+    if (attack_timer <= 0) {
+        player_set_state(isGrounded ? PSTATE.IDLE : PSTATE.FALL);
+    }
+}
+
+// ── COUNTER ATTACK: procesamiento ───────────────────────
+// Hitbox se spawnea en el primer frame (attack_timer == counter_dash_duration al entrar).
+// Sigue al jugador cada frame (el Step de sword_hitbox re-posiciona x/y cada frame).
+// Cuando el timer expira o hay colisión con muro → salir al estado de movimiento.
+if (player_state == PSTATE.COUNTER_ATTACK) {
+    if (!instance_exists(sword_hitbox_id)) {
+        var _player_id = id;
+        sword_hitbox_id = instance_create_layer(
+            x + facing * sword_hitbox_x,
+            y + sword_hitbox_y,
+            "Instances_2",
+            obj_sword_hitbox
+        );
+        with (sword_hitbox_id) {
+            owner              = _player_id;
+            damage             = _player_id.sword_damage_1 * _player_id.counter_damage_multiplier;
+            hitbox_offset_x    = _player_id.sword_hitbox_x;   // sigue al owner cada frame
+            hitbox_offset_y    = _player_id.sword_hitbox_y;
+            hitbox_w           = _player_id.counter_hitbox_w;
+            hitbox_h           = _player_id.counter_hitbox_h;
+            lifetime           = _player_id.counter_dash_duration + 2;  // cubre toda la duración
+            counter_target_id  = _player_id.counter_target;             // filtrar target
+            energy_gain_amount = _player_id.counter_energy_gain;        // 15 por counter hit
+            ds_list_add(hit_list, _player_id);
+        }
+    }
+
+    if (attack_timer <= 0) {
+        player_set_state(isGrounded ? ((_dir != 0) ? PSTATE.RUN : PSTATE.IDLE) : PSTATE.FALL);
     }
 }
 
@@ -872,31 +1055,35 @@ if (player_state == PSTATE.DOWN_SLASH) {
                 obj_sword_hitbox
             );
             with (sword_hitbox_id) {
-                owner           = _player_id;
-                is_pogo         = true;
-                damage          = _player_id.down_slash_damage;
+                owner              = _player_id;
+                is_pogo            = true;
+                damage             = _player_id.down_slash_damage;
                 // lifetime alto: la hitbox vive mientras el estado esté activo.
                 // El exit hook de DOWN_SLASH la destruye al cancelar/aterrizar.
                 // 9999 ÷ 60 fps ≈ 166 s — imposible expirar en gameplay normal.
-                lifetime        = 9999;
-                hitbox_offset_x = _player_id.down_slash_hitbox_x;
-                hitbox_offset_y = _player_id.down_slash_hitbox_y;
-                hitbox_w        = _player_id.down_slash_hitbox_w;
-                hitbox_h        = _player_id.down_slash_hitbox_h;
+                lifetime           = 9999;
+                hitbox_offset_x    = _player_id.down_slash_hitbox_x;
+                hitbox_offset_y    = _player_id.down_slash_hitbox_y;
+                hitbox_w           = _player_id.down_slash_hitbox_w;
+                hitbox_h           = _player_id.down_slash_hitbox_h;
+                energy_gain_amount = _player_id.downward_slash_energy_gain;
                 // Excluir al jugador del hit_list (nunca se daña a sí mismo).
                 ds_list_add(hit_list, _player_id);
-                // on_hit: disparado por try_hit() cuando la hitbox impacta.
-                // Aplica el rebote y activa la bandera para re-armar.
+                // on_hit: sobreescribe el default de sword_hitbox.
+                // Aplica rebote + energía. Air bounce NO aplica (is DOWN_SLASH).
                 on_hit = function(_target) {
                     if (!owner.has_pogo_bounced) {
                         owner.has_pogo_bounced = true;
                         owner.move_y           = owner.pogo_bounce_speed;
                         owner.bounce_count++;
+                        // Energía del pogo solo en el primer bounce de cada hitbox.
+                        owner.gain_super_energy(energy_gain_amount);
                         var _tname = instance_exists(_target)
                                      ? object_get_name(_target.object_index)
                                      : "[destroyed on impact]";
                         show_debug_message("[DBG-POGO] bounce: target=" + _tname
                             + "  speed=" + string(owner.pogo_bounce_speed)
+                            + "  energy=" + string(owner.super_energy)
                             + "  cooldown_next=" + string(owner.downward_slash_hit_cooldown_max));
                     }
                 };
@@ -988,15 +1175,22 @@ if (!ability_parry && player_state == PSTATE.BLOCK) {
 }
 
 // ── TIMERS ────────────────────────────────────────────────
-if (wallJumpLockTimer    > 0) wallJumpLockTimer--;
-if (dashCooldownTimer    > 0) dashCooldownTimer--;
-if (bow_cooldown_timer   > 0) bow_cooldown_timer--;
-if (combo_cooldown_timer > 0) combo_cooldown_timer--;
-if (dash_jump_timer      > 0) dash_jump_timer--;
-if (dash_jump_grace      > 0) dash_jump_grace--;
-if (action_lock_timer    > 0) action_lock_timer--;   // compromiso espada → libera arco al expirar
+if (wallJumpLockTimer         > 0) wallJumpLockTimer--;
+if (dashCooldownTimer         > 0) dashCooldownTimer--;
+if (bow_cooldown_timer        > 0) bow_cooldown_timer--;
+if (combo_cooldown_timer      > 0) combo_cooldown_timer--;
+if (dash_jump_timer           > 0) dash_jump_timer--;
+if (dash_jump_grace           > 0) dash_jump_grace--;
+if (action_lock_timer         > 0) action_lock_timer--;   // compromiso espada → libera arco al expirar
+if (air_sword_bounce_cooldown > 0) air_sword_bounce_cooldown--;
+if (damage_recovery_lock_timer > 0) damage_recovery_lock_timer--;
+// Cuando damage_recovery_lock_timer llega a 0, limpiar lock
+if (damage_recovery_lock && damage_recovery_lock_timer <= 0) {
+    damage_recovery_lock = false;
+}
 // Contraataque: ventana gated (respeta time_scale → más tiempo durante slow-mo)
-if (counterattack_timer  > 0) counterattack_timer--;
+// counterattack_timer se decrementa en ALWAYS (sección real-time) para que el
+// jugador tenga tiempo de reaccionar durante el slow-mo del parry.
 
 // ── BUFFER DE COMBOS ──────────────────────────────────────
 // Registra inputs recientes para detección futura de combos.
@@ -1076,6 +1270,24 @@ switch (player_state) {
         // Transiciones a IDLE/FALL se disparan en la sección always al soltar el botón.
         // Aquí solo aseguramos que las transiciones de movimiento no sobreescriban BLOCK.
     break;
+
+    case PSTATE.DASH_ATTACK:
+        // Transiciones gestionadas en el bloque "ESPADA: dash attack" de arriba.
+        // (timer expiry → IDLE/FALL; wall hit también la maneja el exit hook)
+        var _da_hit_wall = (move_x == 0 && attack_timer > 0);
+        if (_da_hit_wall) {
+            player_set_state(isGrounded ? _ground_dest : PSTATE.FALL);
+        }
+    break;
+
+    case PSTATE.COUNTER_ATTACK:
+        // Timer y wall hit — cancelar early si el player choca con muro.
+        // El timer expiry se maneja en el bloque de procesamiento de arriba.
+        var _ca_hit_wall = (move_x == 0 && attack_timer > 0);
+        if (_ca_hit_wall) {
+            player_set_state(isGrounded ? _ground_dest : PSTATE.FALL);
+        }
+    break;
 }
 
 // ══════════════════════════════════════════════════════════
@@ -1106,13 +1318,13 @@ switch (player_state) {
 // Corre ANTES de actualizar el sprite para capturar el frame del tick anterior
 // (evita parpadeo en el primer frame del dash).
 // El timer se resetea al entrar al dash y cuenta hacia 0 cada step.
-if (player_state == PSTATE.DASH && afterimage_enabled) {
+if ((player_state == PSTATE.DASH || player_state == PSTATE.DASH_ATTACK || player_state == PSTATE.COUNTER_ATTACK) && afterimage_enabled) {
     afterimage_spawn_timer--;
     if (afterimage_spawn_timer <= 0) {
         afterimage_spawn();
         afterimage_spawn_timer = afterimage_spawn_rate;
     }
-} else if (player_state != PSTATE.DASH) {
+} else if (player_state != PSTATE.DASH && player_state != PSTATE.DASH_ATTACK && player_state != PSTATE.COUNTER_ATTACK) {
     // Resetear timer para que la primera copia aparezca inmediatamente
     // en el siguiente dash (sin esperar spawn_rate frames).
     afterimage_spawn_timer = 0;
@@ -1229,6 +1441,17 @@ if (player_state == PSTATE.DASH
             }
             player_anim_state = "air_down_attack";
         break;
+
+        case PSTATE.DASH_ATTACK:
+            spr_set(spr_player_attack_1);   // placeholder hasta tener sprite dedicado
+            player_anim_state = "dash_attack";
+        break;
+
+        case PSTATE.COUNTER_ATTACK:
+            spr_set(spr_player_attack_1);   // placeholder — dedicar spr_player_counter cuando exista
+            player_anim_state = "counter_attack";
+            image_blend = c_orange;         // tinte naranja para distinguirlo del ataque normal
+        break;
     }
 
 } else if (bow_is_charging) {
@@ -1278,9 +1501,9 @@ if (player_state == PSTATE.DASH
         // Congelar en el último frame: pose de apex se mantiene hasta
         // que la física transita a PSTATE.FALL (que cambia el sprite a fall).
         if (floor(image_index) >= image_number - 1) {
-            image_speed = 0;   // freeze
+            image_speed = 0;   // freeze — End Step respeta image_speed == 0
         } else {
-            image_speed = 1;   // play (defensivo: restaura si fue interrumpido)
+            image_speed = global.time_scale;   // play a velocidad de tiempo actual
         }
     } else {
         // ── CAÍDA (vsp ≥ 0) — PSTATE.FALL, PSTATE.DOWN_SLASH cubierto por _in_attack ──

@@ -10,7 +10,10 @@
   "managed":true,
   "name":"obj_player",
   "overriddenProperties":[],
-  "parent":{"name":"Player","path":"folders/Objects/Player.yy",},
+  "parent":{
+    "name":"Player",
+    "path":"folders/Objects/Player.yy",
+  },
   "parentObjectId":{
     "name":"obj_actor_parent",
     "path":"objects/obj_actor_parent/obj_actor_parent.yy",

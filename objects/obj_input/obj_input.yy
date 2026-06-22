@@ -8,7 +8,10 @@
   "managed":true,
   "name":"obj_input",
   "overriddenProperties":[],
-  "parent":{"name":"Managers","path":"folders/Objects/Managers.yy",},
+  "parent":{
+    "name":"Managers",
+    "path":"folders/Objects/Managers.yy",
+  },
   "parentObjectId":null,
   "persistent":true,
   "physicsAngularDamping":0.1,

@@ -11,7 +11,10 @@
   "out_columns":2,
   "out_tilehborder":2,
   "out_tilevborder":2,
-  "parent":{"name":"Collision","path":"folders/Tile Sets/Collision.yy",},
+  "parent":{
+    "name":"Collision",
+    "path":"folders/Tile Sets/Collision.yy",
+  },
   "resourceType":"GMTileSet",
   "resourceVersion":"2.0",
   "spriteId":{

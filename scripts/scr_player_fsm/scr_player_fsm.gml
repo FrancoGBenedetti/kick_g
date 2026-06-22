@@ -31,6 +31,19 @@ enum PSTATE {
     // Bloqueado durante ataque, arco y dash.
     // Dejar: can_counterattack = true para contraataque futuro.
     BLOCK,      // bloqueando — parry window activa los primeros frames
+
+    // ── Dash Attack ───────────────────────────────────────
+    // Activado al presionar ataque durante un PSTATE.DASH activo
+    // (una vez por dash; se resetea al iniciar un dash nuevo).
+    // Mantiene la velocidad y dirección del dash.
+    // Daño = sword_damage_1 × dash_attack_damage_mult (default ×2).
+    DASH_ATTACK, // ataque durante dash — velocidad conservada, hitbox única
+
+    // ── Counter Attack ────────────────────────────────────
+    // Activado al presionar ataque durante la ventana post-parry.
+    // El player se lanza automáticamente hacia counter_target.
+    // Requiere ability_counterattack = true.
+    COUNTER_ATTACK, // dash automático hacia el enemigo parryeado
 }
 
 // ─────────────────────────────────────────────────────────
@@ -79,6 +92,32 @@ function player_set_state(_new_state) {
             }
             sword_hitbox_id  = noone;
             has_pogo_bounced = false;  // estado limpio para el próximo ataque
+        break;
+
+        case PSTATE.DASH_ATTACK:
+            // Destruir hitbox si todavía existe al salir del estado.
+            if (instance_exists(sword_hitbox_id)) {
+                with (sword_hitbox_id) {
+                    ds_list_destroy(hit_list);
+                    instance_destroy();
+                }
+            }
+            sword_hitbox_id = noone;
+            // Cortar momentum al volver al control normal.
+            vel_x = clamp(vel_x, -max_walk_speed, max_walk_speed);
+        break;
+
+        case PSTATE.COUNTER_ATTACK:
+            if (instance_exists(sword_hitbox_id)) {
+                with (sword_hitbox_id) {
+                    ds_list_destroy(hit_list);
+                    instance_destroy();
+                }
+            }
+            sword_hitbox_id       = noone;
+            counter_attack_active = false;
+            counter_target        = noone;
+            vel_x = clamp(vel_x, -max_walk_speed, max_walk_speed);
         break;
     }
 
@@ -148,6 +187,31 @@ function player_set_state(_new_state) {
             attack_timer      = attack_3_frames;
             attack_buffer     = false;
             action_lock_timer = sword_lock_frames;
+        break;
+
+        case PSTATE.DASH_ATTACK:
+            attack_timer      = attack_1_frames;
+            attack_buffer     = false;
+            action_lock_timer = sword_lock_frames;
+            dash_attack_used  = true;
+            afterimage_spawn_timer = 0;
+        break;
+
+        case PSTATE.COUNTER_ATTACK:
+            attack_timer          = counter_dash_duration;
+            attack_buffer         = false;
+            action_lock_timer     = sword_lock_frames;
+            counter_attack_active = true;
+            can_counterattack     = false;
+            counterattack_timer   = 0;
+            parry_slow_timer      = 0;   // cancelar slow-mo → tiempo real restaurado
+            afterimage_spawn_timer = 0;
+            // Apuntar automáticamente hacia el target
+            if (instance_exists(counter_target)) {
+                var _ct_dir = sign(counter_target.x - x);
+                if (_ct_dir == 0) _ct_dir = facing;
+                facing = _ct_dir;
+            }
         break;
     }
 }

@@ -20,6 +20,194 @@
 event_inherited();
 
 // ══════════════════════════════════════════════════════════
+// 1b. PARRY POPUP — ! grande sobre la cabeza
+// Visible siempre que parry_popup_timer > 0 (independiente de debug flags).
+// Duración: parry_popup_timer_max frames reales (default 28 ≈ 0.46s a 60fps).
+// Altura: y + col_top - 24  (sobre la hitbox del jugador).
+// Ajustar:
+//   • Duración   → parry_popup_timer_max en Create_0
+//   • Altura     → modificar el offset _popup_y abajo
+//   • Tamaño     → cambiar los argumentos xscale/yscale de draw_text_transformed
+//   • Color      → cambiar c_yellow / sombra c_black
+// ══════════════════════════════════════════════════════════
+if (parry_popup_timer > 0) {
+    var _dc_pp = draw_get_color();
+    var _da_pp = draw_get_alpha();
+
+    var _popup_x = x;
+    var _popup_y = y + col_top - 24;   // sobre la cabeza — ajustar según sprite
+    var _scale   = 4;                  // tamaño del signo — 3=pequeño, 5=grande
+
+    draw_set_halign(fa_center);
+    draw_set_valign(fa_middle);
+    draw_set_alpha(1.0);
+
+    // Sombra (offset +2, +2 en negro)
+    draw_set_color(c_black);
+    draw_text_transformed(_popup_x + 2, _popup_y + 2, "!", _scale, _scale, 0);
+
+    // Signo principal en amarillo
+    draw_set_color(c_yellow);
+    draw_text_transformed(_popup_x, _popup_y, "!", _scale, _scale, 0);
+
+    draw_set_halign(fa_left);
+    draw_set_valign(fa_top);
+    draw_set_color(_dc_pp);
+    draw_set_alpha(_da_pp);
+}
+
+// ══════════════════════════════════════════════════════════
+// 1c. DEBUG KNOCKBACK DEL JUGADOR
+// Toggle: global.debug_knockback (activar en obj_time_manager Create o en runtime)
+// ══════════════════════════════════════════════════════════
+if (variable_global_exists("debug_knockback") && global.debug_knockback) {
+    var _dc_kb = draw_get_color();
+    var _da_kb = draw_get_alpha();
+    draw_set_alpha(1.0);
+    draw_set_halign(fa_center);
+    draw_set_valign(fa_bottom);
+
+    var _kb_active = (hitstun_timer > 0);
+    draw_set_color(_kb_active ? c_red : make_color_rgb(160,160,160));
+    draw_text(x, y + col_top - 56,
+        "KB:" + (_kb_active ? "ON" : "off")
+        + "  hsp:" + string_format(knockback_x, 1, 1)
+        + "  vsp:" + string_format(move_y, 1, 1)
+        + "  stun:" + string(hitstun_timer) + "/" + string(default_hitstun));
+
+    draw_set_halign(fa_left);
+    draw_set_valign(fa_top);
+    draw_set_color(_dc_kb);
+    draw_set_alpha(_da_kb);
+}
+
+// ══════════════════════════════════════════════════════════
+// 1b2. DEBUG SUPER ENERGY
+// Toggle: global.debug_super_energy (activar en obj_time_manager Create)
+// ══════════════════════════════════════════════════════════
+if (variable_global_exists("debug_super_energy") && global.debug_super_energy) {
+    var _dc_se = draw_get_color();
+    var _da_se = draw_get_alpha();
+    draw_set_alpha(1.0);
+    draw_set_halign(fa_center);
+    draw_set_valign(fa_bottom);
+
+    var _pct = (super_energy_max > 0) ? (super_energy / super_energy_max) : 0;
+
+    // Barra de energía: azul eléctrico sobre la cabeza
+    var _bx  = x;
+    var _by  = y + col_top - 34;
+    var _bw  = 80;
+    var _bh  = 8;
+    // Fondo
+    draw_set_color(make_color_rgb(20, 20, 60));
+    draw_rectangle(_bx - _bw * 0.5, _by - _bh, _bx + _bw * 0.5, _by, false);
+    // Relleno
+    draw_set_color(ability_super_attacks ? make_color_rgb(60, 140, 255) : make_color_rgb(80,80,80));
+    draw_rectangle(_bx - _bw * 0.5, _by - _bh, _bx - _bw * 0.5 + _bw * _pct, _by, false);
+    // Borde
+    draw_set_color(c_white);
+    draw_set_alpha(0.5);
+    draw_rectangle(_bx - _bw * 0.5, _by - _bh, _bx + _bw * 0.5, _by, true);
+
+    // Texto de estado
+    draw_set_alpha(1.0);
+    draw_set_color(c_aqua);
+    draw_text(_bx, _by - _bh - 2,
+        "SE:" + string(super_energy) + "/" + string(super_energy_max)
+        + "  [" + (ability_super_attacks ? "ON" : "off") + "]"
+        + "  U:" + (ability_super_attack_up      ? "Y" : "-")
+        + " D:"  + (ability_super_attack_down    ? "Y" : "-")
+        + " F:"  + (ability_super_attack_forward ? "Y" : "-")
+        + " B:"  + (ability_super_attack_back    ? "Y" : "-"));
+
+    draw_set_halign(fa_left);
+    draw_set_valign(fa_top);
+    draw_set_color(_dc_se);
+    draw_set_alpha(_da_se);
+}
+
+// ══════════════════════════════════════════════════════════
+// 1c2. DEBUG AIR SWORD BOUNCE
+// Toggle: global.debug_air_sword_bounce
+// ══════════════════════════════════════════════════════════
+if (variable_global_exists("debug_air_sword_bounce") && global.debug_air_sword_bounce) {
+    var _dc_asb = draw_get_color();
+    var _da_asb = draw_get_alpha();
+    draw_set_alpha(1.0);
+    draw_set_halign(fa_center);
+    draw_set_valign(fa_bottom);
+
+    var _asb_y = y + col_top - 40;
+
+    // Fila de estado
+    var _on_cd = (air_sword_bounce_cooldown > 0);
+    draw_set_color(_on_cd ? c_red : make_color_rgb(100,200,100));
+    draw_text(x, _asb_y,
+        "AIR-BOUNCE spd:" + string(air_sword_bounce_speed)
+        + "  cd:" + string(air_sword_bounce_cooldown) + "/" + string(air_sword_bounce_cooldown_max)
+        + "  grnd:" + string(isGrounded)
+        + "  vsp:" + string_format(move_y, 1, 1));
+
+    // Flash "AIR SWORD BOUNCE" durante air_sword_bounce_flash_timer frames
+    if (air_sword_bounce_flash_timer > 0) {
+        var _alpha = air_sword_bounce_flash_timer / air_sword_bounce_flash_max;
+        draw_set_alpha(_alpha);
+        var _scale = 2.5;
+        draw_set_color(c_black);
+        draw_set_halign(fa_center);
+        draw_set_valign(fa_middle);
+        draw_text_transformed(x + 2, y + col_top - 68, "AIR SWORD BOUNCE", _scale, _scale, 0);
+        draw_set_color(c_lime);
+        draw_text_transformed(x,     y + col_top - 68, "AIR SWORD BOUNCE", _scale, _scale, 0);
+        draw_set_valign(fa_top);
+    }
+
+    draw_set_halign(fa_left);
+    draw_set_valign(fa_top);
+    draw_set_color(_dc_asb);
+    draw_set_alpha(_da_asb);
+}
+
+// ══════════════════════════════════════════════════════════
+// 1d. DEBUG COUNTER ATTACK
+// Toggle: global.debug_counterattack (activar en obj_time_manager Create)
+// ══════════════════════════════════════════════════════════
+if (variable_global_exists("debug_counterattack") && global.debug_counterattack) {
+    var _dc_ca = draw_get_color();
+    var _da_ca = draw_get_alpha();
+    draw_set_alpha(1.0);
+    draw_set_halign(fa_center);
+    draw_set_valign(fa_bottom);
+
+    var _has_window  = can_counterattack && counterattack_timer > 0;
+    var _target_name = instance_exists(counter_target)
+                       ? object_get_name(counter_target.object_index)
+                       : "noone";
+
+    draw_set_color(_has_window ? c_orange : make_color_rgb(140,140,140));
+    draw_text(x, y + col_top - 72,
+        "COUNTER:" + (ability_counterattack ? "ON" : "OFF")
+        + "  win:" + (_has_window ? "ACTIVE" : "---")
+        + "  t:" + string(counterattack_timer)
+        + "  ACT:" + string(counter_attack_active)
+        + "  tgt:" + _target_name);
+
+    // Si hay ventana activa: dibujar línea hacia el target
+    if (_has_window && instance_exists(counter_target)) {
+        draw_set_color(c_orange);
+        draw_set_alpha(0.8);
+        draw_line_width(x, y + col_top * 0.5,
+                        counter_target.x, counter_target.y + counter_target.col_top * 0.5, 2);
+    }
+
+    draw_set_halign(fa_left);
+    draw_set_valign(fa_top);
+    draw_set_color(_dc_ca);
+    draw_set_alpha(_da_ca);
+}
+
+// ══════════════════════════════════════════════════════════
 // 2. DEBUG PARRY EXTENDIDO
 // Toggle: F9 → global.debug_parry
 //
@@ -61,7 +249,7 @@ if (variable_global_exists("debug_parry") && global.debug_parry) {
     // ── Dimensiones del panel ─────────────────────────────
     var _panel_w = 168;
     var _line_h  = 13;
-    var _lines   = 8;
+    var _lines   = 10;
     var _panel_h = _lines * _line_h + 12;
     var _px      = x - _panel_w * 0.5;
     var _py      = y + col_top - _panel_h - 10;
@@ -79,7 +267,15 @@ if (variable_global_exists("debug_parry") && global.debug_parry) {
     // ── Línea 0: header ───────────────────────────────────
     draw_set_color(c_white);
     draw_set_alpha(1.0);
-    draw_text(_tx, _ty, "── PARRY DEBUG ──");
+    draw_text(_tx, _ty, "── PARRY / HIT DEBUG ──");
+    _ty += _line_h;
+
+    // ── Línea 0b: invulnerabilidad + hitstun ──────────────
+    draw_set_color(is_invulnerable ? c_orange : make_color_rgb(140, 140, 140));
+    draw_text(_tx, _ty,
+        "INVULN:" + (is_invulnerable ? string(invuln_timer) : "NO")
+        + "  HITSTUN:" + string(hitstun_timer)
+        + "  KB:" + string_format(knockback_x, 1, 1));
     _ty += _line_h;
 
     // ── Línea 1: estado FSM + hitstun + dash ─────────────

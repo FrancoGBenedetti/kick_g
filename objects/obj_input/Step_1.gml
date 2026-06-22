@@ -91,6 +91,14 @@ if (keyboard_check_pressed(vk_f8)) {
     show_debug_message("Hitbox debug (unified): " + string(global.debug_hitboxes));
 }
 
+// F11: debug del afterimage/ghost trail del dash — muestra alpha por copia
+// sobre cada instancia de obj_dash_afterimage y loguea cada spawn en consola.
+if (keyboard_check_pressed(vk_f11)) {
+    global.debug_dash_afterimage = !variable_global_exists("debug_dash_afterimage")
+                                   || !global.debug_dash_afterimage;
+    show_debug_message("Dash afterimage debug: " + string(global.debug_dash_afterimage));
+}
+
 // ── GAMEPAD (futuro) ──────────────────────────────────────
 // Para agregar gamepad: OR cada campo con los valores del gamepad.
 // Ejemplo:

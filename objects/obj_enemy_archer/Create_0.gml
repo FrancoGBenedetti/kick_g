@@ -38,6 +38,13 @@ aim_angle_max = EARCHER_AIM_MAX;   //  25 grados (abajo)
 arrow_speed   = 12;                // px/frame
 enemy_damage  = EARCHER_DAMAGE;    //  1 de daño
 
+// ── Offset de spawn de proyectil ───────────────────────────
+// Posición relativa donde aparecen las flechas respecto al cuerpo.
+// offset_x: distancia horizontal desde col_right/col_left
+// offset_y: distancia vertical desde y (negativo = arriba en el sprite)
+projectile_spawn_offset_x = 8;     // píxeles más allá de col_right/col_left
+projectile_spawn_offset_y = -24;   // altura de pecho aproximada
+
 // ── FSM: estados del arquero ──────────────────────────────
 ESTATE_AIM      = 2;   // apuntando y cargando
 ESTATE_COOLDOWN = 3;   // cooldown post-disparo

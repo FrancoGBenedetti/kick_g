@@ -138,9 +138,15 @@ hpbar_col_fill       = make_color_rgb( 40, 200,  80); // verde
 // take_damage: punto de entrada principal.
 // Desde fuera:  target.take_damage(cantidad, id_fuente);
 take_damage = function(_amount, _source) {
-    if (is_invulnerable) exit;
+    show_debug_message("[ACTOR-DAMAGE] " + object_get_name(object_index) + " take_damage llamado: amount=" + string(_amount) + " invuln=" + string(is_invulnerable));
+
+    if (is_invulnerable) {
+        show_debug_message("[ACTOR-DAMAGE] ^^ INVULNERABLE — exit");
+        exit;
+    }
 
     hp = max(hp - _amount, 0);
+    show_debug_message("[ACTOR-DAMAGE] ^^ DAÑO APLICADO: hp_nuevo=" + string(hp));
 
     // I-frames condicionales: solo si invuln_on_damage = true.
     // Jugador: true (default). Enemigos comunes: false (sobrescrito en obj_enemy_parent).
