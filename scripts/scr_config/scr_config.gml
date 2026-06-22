@@ -75,6 +75,28 @@
 #macro ATTACK_TYPE_MELEE       0
 #macro ATTACK_TYPE_PROJECTILE  1
 
+// ── Knockback del jugador al recibir daño ────────────────────────
+//  Aplicado cuando un enemigo golpea al jugador.
+//  PLAYER_KNOCKBACK_X  : px/frame de empuje horizontal (actor default: 5)
+//  PLAYER_KNOCKBACK_Y  : impulso vertical al recibir golpe (actor default: -3)
+//  PLAYER_HITSTUN      : frames de hitstun (actor default: 12)
+//  PLAYER_KNOCKBACK_DECAY : factor por frame (0.80 = decae en ~20 frames)
+#macro PLAYER_KNOCKBACK_X      24   // empuje fuerte — sentir el golpe
+#macro PLAYER_KNOCKBACK_Y      -8   // salto hacia atrás visible
+#macro PLAYER_HITSTUN          20   // suficiente para ver el knockback completo
+#macro PLAYER_KNOCKBACK_DECAY  0.80 // decae gradualmente (no teletransporte)
+
+// ── Knockback de enemigos al recibir daño ────────────────────────
+//  Aplicado cuando el jugador golpea a un enemigo.
+//  ENEMY_KNOCKBACK_X  : px/frame de empuje horizontal (enemy_parent actual: 8)
+//  ENEMY_KNOCKBACK_Y  : impulso vertical (enemy_parent actual: -5)
+//  ENEMY_HITSTUN      : frames de hitstun (enemy_parent actual: 14)
+//  ENEMY_KNOCKBACK_DECAY : factor por frame
+#macro ENEMY_KNOCKBACK_X      14   // empuje claro — "peso" del golpe
+#macro ENEMY_KNOCKBACK_Y      -7   // saltito hacia atrás
+#macro ENEMY_HITSTUN          18   // da tiempo a ver el blink y el retroceso
+#macro ENEMY_KNOCKBACK_DECAY  0.80 // igual que el jugador
+
 // ── Parry Stun del enemigo ────────────────────────────────────────
 //  Aplicado al enemigo cuando el jugador ejecuta parry perfecto
 //  contra un ataque melee de ese enemigo.
@@ -168,11 +190,24 @@
 
 // ── Enemigo: Espadachín ────────────────────────────────────────
 #macro ESWORDSMAN_AGGRO_RANGE      350   // px — rango de detección al jugador
-// Distancia de parada y activación de ataque.
-// Ajustado levemente para compensar el mayor tamaño visual del jugador 256×256.
-// El alcance real del golpe no cambia (el enemigo es el mismo tamaño),
-// pero una distancia ligeramente mayor evita que el enemigo se solape con el sprite del jugador.
-#macro ESWORDSMAN_ATTACK_STOP_DIST  80   // px horizontal — era 60 con sprite 128×128
+
+// Rango de ataque en dos fases:
+//   TRIGGER: distancia a la que el enemigo DECIDE atacar y entra en WINDUP.
+//            Mientras el jugador esté a más de STOP_DIST, sigue avanzando.
+//   STOP:    distancia a la que se detiene, cuenta el timer y dispara la hitbox.
+//            El hitbox se extiende desde el origen hasta TRIGGER_DIST.
+// Para ajustar la "reacción" del enemigo: solo cambiar TRIGGER.
+// Para ajustar el alcance real del golpe: cambiar TRIGGER (también cambia la hitbox).
+#macro ESWORDSMAN_ATTACK_TRIGGER_DIST  220  // px horizontal — enemigo decide atacar + alcance real hitbox
+#macro ESWORDSMAN_ATTACK_STOP_DIST      64  // px horizontal — se detiene aquí, cuenta windup, dispara
+
+// Hitbox del ataque: se extiende desde el origen del enemigo hasta TRIGGER_DIST.
+// Centrado en TRIGGER_DIST/2 con ancho TRIGGER_DIST = alcance continuo [0, TRIGGER_DIST].
+#macro ESWORDSMAN_HITBOX_OFFSET_X  110  // px = TRIGGER_DIST / 2 — centro del hitbox
+#macro ESWORDSMAN_HITBOX_OFFSET_Y   -40 // px hacia arriba del origen (cuerpo/torso del enemigo)
+#macro ESWORDSMAN_HITBOX_W          220 // px = TRIGGER_DIST — cubre desde 0 hasta trigger_dist
+#macro ESWORDSMAN_HITBOX_H          120 // px alto — torso + piernas del jugador
+
 // Tolerancia vertical: si el jugador está más arriba/abajo que esto, no atacar.
 // Aumentada a ×1.5 del valor anterior para mantener el feel de combate con el jugador más alto.
 // Un jugador de 150 px tiene más "zona de combate" vertical que uno de 72 px.
@@ -181,6 +216,52 @@
 #macro ESWORDSMAN_ACTIVE            12   // frames con hitbox de espada activa
 #macro ESWORDSMAN_COOLDOWN          90   // frames entre ataques
 #macro ESWORDSMAN_DAMAGE             1   // daño por golpe
+
+// ── Super Energy (mana / super meter) ────────────────────────────
+//  Recurso acumulado por golpes exitosos. Base para futuros super ataques.
+//
+//  SUPER_ENERGY_MAX          : tope del medidor.
+//  SUPER_ENERGY_RECHARGE_*   : energía ganada por cada tipo de golpe.
+//    Ajustar aquí para cambiar la velocidad de carga del super.
+//  SUPER_ATTACK_COST_*       : costo en energía de cada futuro super ataque.
+//    No se gastan todavía — los super ataques no están implementados.
+#macro SUPER_ENERGY_MAX              100
+#macro SUPER_ENERGY_RECHARGE_SWORD     5   // espada normal, en suelo
+#macro SUPER_ENERGY_RECHARGE_AIR_SWORD 6   // espada normal, en aire
+#macro SUPER_ENERGY_RECHARGE_POGO      8   // downward slash / pogo (hit confirmado)
+#macro SUPER_ENERGY_RECHARGE_ARROW     5   // flecha con hit confirmado
+#macro SUPER_ENERGY_RECHARGE_PARRY    10   // parry perfecto exitoso
+#macro SUPER_ENERGY_RECHARGE_COUNTER  15   // counter attack con hit confirmado
+
+// ── Costos de futuros super ataques ──────────────────────────────
+#macro SUPER_ATTACK_COST_UP       25   // ↑ + ataque
+#macro SUPER_ATTACK_COST_DOWN     25   // ↓ + ataque (distinto al pogo)
+#macro SUPER_ATTACK_COST_FORWARD  30   // → (facing) + ataque
+#macro SUPER_ATTACK_COST_BACK     30   // ← (contra facing) + ataque
+
+// ── Air Sword Bounce ─────────────────────────────────────────────
+//  Pequeño impulso vertical al golpear un enemigo con espada normal en el aire.
+//  NO aplica para downward slash / pogo (que tiene su propio rebote fuerte).
+//
+//  AIR_SWORD_BOUNCE_SPEED    : px/frame hacia arriba (negativo = arriba).
+//                              Rango sugerido: -3 (suave) a -6 (notorio).
+//  AIR_SWORD_BOUNCE_COOLDOWN : frames antes de poder volver a rebotar.
+//                              Evita multi-bounce si la hitbox permanece en contacto.
+#macro AIR_SWORD_BOUNCE_SPEED      -5   // px/frame — impulso suave visible
+#macro AIR_SWORD_BOUNCE_COOLDOWN    8   // frames — ventana anti-multi-bounce
+
+// ── Counter Attack (contraataque post-parry) ─────────────────────
+//  Activado cuando el jugador presiona ataque durante la ventana de parry.
+//  El player se lanza automáticamente hacia counter_target.
+//  COUNTER_DASH_SPEED        : px/frame del lanzamiento automático
+//  COUNTER_DASH_DURATION     : frames que dura el dash de counter
+//  COUNTER_DAMAGE_MULTIPLIER : ×daño de la espada normal
+//  COUNTER_HITBOX_W/H        : área de la hitbox del counter (más grande que espada normal)
+#macro COUNTER_DASH_SPEED         32    // px/frame — rápido y decidido
+#macro COUNTER_DASH_DURATION      12    // frames de viaje (~0.2 s a 60 fps)
+#macro COUNTER_DAMAGE_MULTIPLIER   3.0  // × sword_damage_1 — golpe decisivo
+#macro COUNTER_HITBOX_W          120    // px — área ancha para compensar la velocidad
+#macro COUNTER_HITBOX_H           80    // px — altura generosa
 
 // ── Enemigo: Arquero ───────────────────────────────────────────
 #macro EARCHER_AGGRO_RANGE     500   // px — rango de detección

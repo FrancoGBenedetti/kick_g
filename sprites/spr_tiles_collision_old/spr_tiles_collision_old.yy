@@ -43,7 +43,10 @@
     "top":0,
   },
   "origin":0,
-  "parent":{"name":"Collision","path":"folders/Sprites/Tiles/Collision.yy",},
+  "parent":{
+    "name":"Collision",
+    "path":"folders/Sprites/Tiles/Collision.yy",
+  },
   "preMultiplyAlpha":false,
   "resourceType":"GMSprite",
   "resourceVersion":"2.0",

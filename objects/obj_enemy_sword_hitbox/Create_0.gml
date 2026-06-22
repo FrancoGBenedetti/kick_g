@@ -24,10 +24,11 @@ can_be_blocked = true;                // block normal detiene el daño
 is_melee       = true;
 
 // ── Geometría (valores por defecto — sobreescritos al spawnear) ──
-hitbox_offset_x = 44;
-hitbox_offset_y = -18;
-hitbox_w        = 52;
-hitbox_h        = 42;
+// El swordsman usa estos valores de config; otros enemigos pueden variar.
+hitbox_offset_x = 110;  // fallback — sobreescrito por el swordsman
+hitbox_offset_y = -40;  // fallback
+hitbox_w        = 220;  // fallback
+hitbox_h        = 120;  // fallback
 
 // ── Lifetime ──────────────────────────────────────────────
 lifetime = 12;

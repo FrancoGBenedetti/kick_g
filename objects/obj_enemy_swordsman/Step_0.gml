@@ -49,6 +49,15 @@ var _lost_aggro      = !_player_exists
                        || abs(_dx) >= lose_aggro_range_x
                        || abs(_dy) >= lose_aggro_range_y;
 
+// ── Detección del rectángulo de ataque ────────────────────
+// Calcula si el player toca parcialmente el hitbox de ataque.
+// Esto reemplaza la verificación de distancia lineal.
+var _attack_rect = scr_enemy_get_attack_rect(id);
+var _player_in_attack_rect = (_player_exists
+                              && collision_rectangle(_attack_rect.left, _attack_rect.top,
+                                                     _attack_rect.right, _attack_rect.bottom,
+                                                     obj_player, false, true) != noone);
+
 // Jugador está debajo y es candidato para drop-down
 var _player_is_below = (can_drop_down && _dy > player_below_threshold
                         && abs(_dx) < drop_down_x_tolerance);
@@ -76,18 +85,16 @@ switch (estate) {
             patrol_dir = facing;
             break;
         }
-        // Transición a WINDUP solo cuando:
-        //   • el jugador está dentro del alcance real de la hitbox en X
-        //   • el jugador no está demasiado arriba/abajo (vertical tolerance)
-        //   • el cooldown está disponible
-        // Usando abs(_dx) en lugar de _dist circular evita ataques fallidos
-        // causados por diferencia de altura (el jugador a 80px diagonal puede
-        // estar fuera del alcance horizontal aunque _dist < melee_range antiguo).
-        if (abs(_dx) <= attack_stop_distance
+        // Transición a WINDUP cuando:
+        //   • el jugador toca el hitbox de ataque (cualquier parte)
+        //   • tolerancia vertical OK — el jugador no está demasiado arriba/abajo
+        //   • cooldown disponible
+        if (_player_in_attack_rect
         &&  abs(_dy) <= attack_vertical_tolerance
         &&  attack_cooldown_timer <= 0) {
             estate              = ESTATE_ATTACK_WINDUP;
             attack_windup_timer = attack_windup;
+            show_debug_message("[SWORDSMAN] CHASE → WINDUP: player en hitbox");
         }
     break;
 
@@ -172,16 +179,27 @@ switch (estate) {
     break;
 
     case ESTATE_ATTACK_WINDUP:
-        // Parado, mirando al jugador durante la anticipación
-        move_x = 0;
-        // Forzar facing hacia el jugador (el parent solo lo cambia si move_x != 0)
+        // Forzar facing hacia el jugador en todo momento durante el windup
         if (_chase_dir != 0) facing = _chase_dir;
 
+        // Fase de avance: si el jugador aún está fuera del hitbox,
+        // seguir caminando para cerrar la distancia.
+        // El timer BAJA SIEMPRE cada frame (no depende de distancia).
+        if (!_player_in_attack_rect) {
+            move_x = _chase_dir * chase_speed;
+        } else {
+            move_x = 0;
+        }
+
+        // ── Timer de windup: baja siempre ─────────────────
         attack_windup_timer--;
-        if (attack_windup_timer <= 0) {
+
+        // ── Transición a ACTIVE: solo si timer llega a 0 y player está en rango ──
+        if (attack_windup_timer <= 0 && _player_in_attack_rect) {
             // ── Transición a ataque activo: spawnar hitbox ────
             estate              = ESTATE_ATTACK_ACTIVE;
             attack_active_timer = attack_active_time;
+            show_debug_message("[SWORDSMAN] WINDUP → ACTIVE: spawning hitbox");
 
             var _enemy_id = id;
             sword_hitbox_id = instance_create_layer(
@@ -200,6 +218,12 @@ switch (estate) {
                 hitbox_w        = _enemy_id.esword_hitbox_w;
                 hitbox_h        = _enemy_id.esword_hitbox_h;
             }
+        } else if (attack_windup_timer <= 0) {
+            // ── Timer llegó a 0 pero player se alejó demasiado ────
+            // Volver a CHASE para perseguir
+            show_debug_message("[SWORDSMAN] WINDUP timeout: player se alejó, volviendo a CHASE");
+            estate              = ESTATE_CHASE;
+            attack_windup_timer = 0;
         }
     break;
 
@@ -234,4 +258,36 @@ event_inherited();
 // En CHASE el enemigo presiona contra la pared — comportamiento agresivo.
 if (estate == ESTATE_PATROL && wallContact && wallSide == patrol_dir) {
     patrol_dir = -patrol_dir;
+}
+
+// ══════════════════════════════════════════════════════════
+// ANIMACIÓN VISUAL (sprites de prueba)
+// ══════════════════════════════════════════════════════════
+// Prioridad: Attack > Walk > Idle
+// Reemplazar spr_test* por los sprites definitivos cuando estén listos.
+// La lógica de prioridad y los estados FSM no cambian — solo sprite_index.
+//
+// ATTACK: windup + ataque activo + cooldown (recovery post-golpe)
+// WALK:   hay movimiento horizontal real y no está bloqueado
+// IDLE:   todo lo demás (parado, esperando, bloqueado)
+//
+// hitstun: el bloque de exit arriba ya salió antes de llegar aquí,
+//          así que sprite_index queda en el valor del frame anterior
+//          (comportamiento correcto — no mostrar walk/idle durante knockback).
+// WINDUP: aviso visual antes del golpe (jugador puede preparar parry)
+// ACTIVE: golpe real — hitbox viva, parry window abierta
+// COOLDOWN/IDLE/CHASE: sprite neutro — no debe verse atacando
+if (estate == ESTATE_ATTACK_WINDUP
+||  estate == ESTATE_ATTACK_ACTIVE) {
+
+    sprite_index = spr_test_atk;
+
+} else if (abs(move_x) > 0.1 && !is_blocked_by_enemy) {
+
+    sprite_index = spr_test_walk;
+
+} else {
+
+    sprite_index = spr_test;   // idle — cubre COOLDOWN, PATROL parado, CHASE parado
+
 }

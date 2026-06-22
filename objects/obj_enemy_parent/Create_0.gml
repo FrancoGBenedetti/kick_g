@@ -49,6 +49,19 @@ is_parried_stunned  = false;   // true mientras hitstun proviene de parry
 can_be_countered    = false;   // true durante la ventana de contraataque
 counter_window_timer = 0;      // cuenta regresiva; > 0 = ventana activa
 
+// ── Estado vulnerable al counter ─────────────────────────
+// parried_vulnerable: flag observable por sistemas externos.
+//   true  → enemigo queda expuesto para counter attack (no ataca, no persigue).
+//   false → recuperó el control.
+// parried_vulnerable_timer: cuenta regresiva gated (respeta time_scale).
+// parried_vulnerable_duration: duración total de la ventana de vulnerabilidad.
+//   Ajustar aquí para darle al jugador más/menos tiempo de contraatacar.
+// counter_target_priority: este enemigo es target prioritario para el counter.
+parried_vulnerable          = false;
+parried_vulnerable_timer    = 0;
+parried_vulnerable_duration = PARRY_STUN_DURATION;   // cubre el stun completo (60 f)
+counter_target_priority     = true;
+
 // ── Daño por contacto ─────────────────────────────────────
 // Cuando el jugador toca físicamente a este enemigo.
 // Usa take_damage() del jugador → respeta sus i-frames y parry.
@@ -106,9 +119,28 @@ enemy_queue_distance_to_player = 180;   // px
 // Un valor de 24 cubre ±¾ de tile sin afectar enemigos en pisos distintos.
 enemy_same_floor_tolerance = 24;   // px — diferencia máxima de Y para ser "mismo piso"
 
-// Variable de estado: true cuando otro enemigo empuja a este.
+// Variable de estado: true cuando otro enemigo empuja o bloquea a este.
 // Puede leerse desde la IA de los hijos para cancelar avance.
 is_blocked_by_enemy = false;
+
+// ── Hard block: detención dura por bloqueador adelante ────
+//
+// blocks_other_enemies     : este enemigo actúa como pared para los demás
+//                            (si alguien se acerca, lo detiene)
+// blocked_by_other_enemies : este enemigo se detiene si hay un bloqueador adelante
+// enemy_block_distance     : px de brecha entre bordes de bbox para activar el bloqueo
+//                            Valores típicos: 8-24 px. Menor = solo se frena al casi tocar.
+// blocking_enemy_id        : ID de la instancia que actualmente bloquea a este (noone = libre)
+//
+// Configuración por tipo de enemigo (sobreescribir en Create del hijo):
+//   Enemigos terrestres  → defaults (ambos true)
+//   Enemigos voladores   → blocks_other_enemies = false, blocked_by_other_enemies = false
+//   Bosses               → blocked_by_other_enemies = false (nunca se detienen)
+//   Proyectiles          → no heredan obj_enemy_parent, no aplica
+blocks_other_enemies     = true;
+blocked_by_other_enemies = true;
+enemy_block_distance     = 16;     // px — ajustar según el ancho visual del sprite
+blocking_enemy_id        = noone;  // debug: quién bloquea ahora
 
 // ── Salud base ────────────────────────────────────────────
 // Sobreescribir en hijos para ajustar resistencia.
@@ -150,6 +182,14 @@ aggro_range_y      = 160;   // px vertical   para activar chase
 lose_aggro_range_x = 480;   // px horizontal para perder aggro
 lose_aggro_range_y = 240;   // px vertical   para perder aggro
 
+// ── Alcance de ataque melee: configurable por enemigo ────────
+// Define el tamaño y posición del hitbox de ataque en rango.
+// Sobrescribir en cada enemigo hijo según su arma/tamaño.
+// Ejemplo: enemy_attack_reach = 300 para arma larga.
+enemy_attack_reach        = 220;   // px horizontal — alcance del ataque
+enemy_attack_height       = 120;   // px vertical — alto del hitbox
+enemy_attack_offset_y     = -40;   // px — posición vertical relativa al origen
+
 // ── Drop-down: bajar plataformas persiguiendo al jugador ──
 // Solo aplica cuando can_drop_down = true.
 //
@@ -186,15 +226,86 @@ ESTATE_DEAD   = 4;    // muerto   — reservado
 
 estate = ESTATE_PATROL;
 
+// ══════════════════════════════════════════════════════════
+// HIT FEEDBACK — override de valores del actor_parent
+// ══════════════════════════════════════════════════════════
+// Los enemigos usan knockback y hitstun más perceptibles que el default
+// del actor (default_knockback_x=5, knockback_y_force=-3, default_hitstun=12).
+// Sobreescribir en cada hijo si se necesita un valor distinto.
+// Valores via scr_config — ajustar ENEMY_KNOCKBACK_X/Y, ENEMY_HITSTUN ahí.
+default_knockback_x = ENEMY_KNOCKBACK_X;     // 14 px/frame (actor default: 5, antiguo: 8)
+knockback_y_force   = ENEMY_KNOCKBACK_Y;     // -7 px/frame (actor default: -3, antiguo: -5)
+default_hitstun     = ENEMY_HITSTUN;          // 18 frames  (actor default: 12, antiguo: 14)
+knockback_decay     = ENEMY_KNOCKBACK_DECAY;  // 0.80 por frame (antiguo: 0.75)
+
+// ── Blink visual al recibir golpe ─────────────────────────
+// can_hit_flash: habilita el parpadeo de image_alpha durante el hit.
+// enemy_hit_flash_duration: cuántos frames dura el parpadeo.
+// enemy_hit_blink_interval: cada cuántos frames cambia alpha (menor = más rápido).
+can_hit_flash            = true;
+enemy_hit_flash          = false;
+enemy_hit_flash_timer    = 0;
+enemy_hit_flash_duration = 12;    // frames totales del efecto
+enemy_hit_blink_interval = 3;     // frames entre cambios de alpha
+
+// ── Flags de reacción al daño ─────────────────────────────
+// can_take_knockback: si false, el enemigo no es empujado.
+// can_enter_hitstun:  si false, la IA no se interrumpe al recibir daño.
+// enemy_knockback_multiplier: escala el knockback_x resultante.
+// enemy_hitstun_multiplier:   escala el hitstun_timer resultante.
+// enemy_hit_iframes: 0 = sin invulnerabilidad (combos libres).
+//                    >0 = frames de invulnerabilidad post-golpe (para bosses).
+can_take_knockback          = true;
+can_enter_hitstun           = true;
+enemy_knockback_multiplier  = 1.0;
+enemy_hitstun_multiplier    = 1.0;
+enemy_hit_iframes           = 0;    // 0 = enemigos normales, sin i-frames
+
 // ── Hooks virtuales ───────────────────────────────────────
 // Sobreescribir en cada hijo para reacciones específicas.
+// Los hijos que necesiten lógica propia DEBEN capturar este método
+// antes de sobreescribir: var _p = on_damage; ... _p(_amount, _source);
 
 on_damage = function(_amount, _source) {
-    // Pausa de readquisición: evita vibración post-pogo
+    // ── Pausa de readquisición ────────────────────────────
     reacquire_timer = reacquire_wait_max;
+
+    // ── Blink visual ──────────────────────────────────────
+    if (can_hit_flash) {
+        enemy_hit_flash       = true;
+        enemy_hit_flash_timer = enemy_hit_flash_duration;
+    }
+
+    // ── Ajustar knockback ─────────────────────────────────
+    // knockback_x ya fue calculado por base take_damage. Aplicar flags/multiplier.
+    if (!can_take_knockback) {
+        knockback_x = 0;
+        // Cancelar impulso vertical también
+        if (move_y < 0) move_y = 0;
+    } else if (enemy_knockback_multiplier != 1.0) {
+        knockback_x *= enemy_knockback_multiplier;
+    }
+
+    // ── Ajustar hitstun ───────────────────────────────────
+    if (!can_enter_hitstun) {
+        hitstun_timer = 0;
+    } else if (enemy_hitstun_multiplier != 1.0) {
+        hitstun_timer = round(hitstun_timer * enemy_hitstun_multiplier);
+    }
+
+    // ── I-frames opcionales (para bosses) ─────────────────
+    // invuln_on_damage = false en obj_enemy_parent → take_damage no activa i-frames.
+    // enemy_hit_iframes > 0 los activa manualmente para enemigos especiales.
+    if (enemy_hit_iframes > 0) {
+        is_invulnerable = true;
+        invuln_timer    = enemy_hit_iframes;
+    }
+
     show_debug_message("[DBG] ENEMY on_damage: obj=" + object_get_name(object_index)
         + "  hp=" + string(hp)
-        + "  hitstun=" + string(hitstun_timer));
+        + "  hitstun=" + string(hitstun_timer)
+        + "  knockback=" + string_format(knockback_x, 1, 1)
+        + "  flash=" + string(enemy_hit_flash));
 };
 
 die = function() {

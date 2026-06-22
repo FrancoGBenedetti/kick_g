@@ -21,6 +21,20 @@
 // ══════════════════════════════════════════════════════════
 if (!global.do_step) exit;
 
+// ── Hit flash: parpadeo visual al recibir daño ────────────
+// Corre cada frame gated para decrementar el timer y actualizar image_alpha.
+// image_alpha es leído por draw_self() y draw_sprite_ext() en los Draw events.
+if (enemy_hit_flash_timer > 0) {
+    enemy_hit_flash_timer--;
+    image_alpha = ((enemy_hit_flash_timer div enemy_hit_blink_interval) mod 2 == 0) ? 0.3 : 1.0;
+    if (enemy_hit_flash_timer <= 0) {
+        enemy_hit_flash = false;
+        image_alpha     = 1.0;
+    }
+} else {
+    image_alpha = 1.0;
+}
+
 // ── Ventana de contraataque ───────────────────────────────
 // Decrementada cada frame gated (respeta time_scale).
 // Cuando expira: limpiar can_be_countered para que futuros
@@ -29,6 +43,16 @@ if (counter_window_timer > 0) {
     counter_window_timer--;
     if (counter_window_timer <= 0) {
         can_be_countered = false;
+    }
+}
+
+// ── Ventana de vulnerabilidad al counter ──────────────────
+// Decrementada en gated junto con el hitstun (ambos respetan time_scale).
+// Al expirar: el enemigo ya no es vulnerable al counter.
+if (parried_vulnerable_timer > 0) {
+    parried_vulnerable_timer--;
+    if (parried_vulnerable_timer <= 0) {
+        parried_vulnerable = false;
     }
 }
 
@@ -69,68 +93,96 @@ if (contact_damage_enabled && hitstun_timer <= 0) {
     }
 }
 
-// ── Separación / fila entre enemigos ─────────────────────
-// La fuerza de separación SOLO se aplica cuando tiene sentido competir
-// por posición frente al jugador. Dos enemigos patrullando pueden
-// cruzarse libremente — no tienen razón para bloquearse.
+// ══════════════════════════════════════════════════════════
+// SEPARACIÓN Y BLOQUEO ENTRE ENEMIGOS
+// ══════════════════════════════════════════════════════════
+// Dos mecanismos en un único loop with:
 //
-// CONDICIONES para aplicar bloqueo (todas deben cumplirse):
-//   1. Ambos enemigos están en chase/ataque (no patrullando).
-//   2. Ambos están dentro de enemy_queue_distance_to_player del jugador.
-//   3. Ambos están en el mismo piso (abs(dy) ≤ enemy_same_floor_tolerance).
+//   1. Soft push — empuje cuadrático cuando dos enemigos se solapan.
+//      Resuelve solapamientos residuales suavemente.
+//      Fórmula: push = sign(dx) × t² × strength × 2   (t = 1 − dist/combined_r)
 //
-// Si alguna condición falla: los enemigos se ignoran → pueden cruzarse.
+//   2. Hard block — detención dura cuando el enemigo se mueve hacia
+//      otro que tiene blocks_other_enemies = true y está a < enemy_block_distance
+//      px de gap entre sus bordes de bbox. Fuerza move_x = 0.
 //
-// Fórmula de push cuadrático (cuando aplica):
-//   t = 1 − (dist / combined_radius)   → 0 en el borde, 1 en solapado
-//   push = sign(dx) × t² × strength × 2
+// Condición compartida:
+//   • vecino tiene blocks_other_enemies = true
+//   • caller tiene blocked_by_other_enemies = true
+//   • mismo piso: abs(vecino.y - caller.y) ≤ enemy_same_floor_tolerance
 //
-// 'other' dentro del with = contexto llamante (enemigo siendo procesado)
-// 'self'  dentro del with = enemigo iterado (vecino)
+// Precedencia de aplicación:
+//   hard blocked → move_x = soft_push_only (push separa overlap, chase cancelado)
+//   solo overlap → move_x += soft_push
+//   ninguno      → move_x sin cambios
+//
+// 'self'  dentro del with = vecino (instancia iterada)
+// 'other' dentro del with = caller (instancia cuyo Step corre)
+// ══════════════════════════════════════════════════════════
 is_blocked_by_enemy = false;
+blocking_enemy_id   = noone;
+var _sep_x          = 0;
+var _hard_blocked   = false;
 
-if (enemy_separation_enabled && hitstun_timer <= 0) {
-    var _sep_x         = 0;
-    var _player_exists = instance_exists(obj_player);
+if (enemy_separation_enabled && hitstun_timer <= 0 && blocked_by_other_enemies) {
 
     with (obj_enemy_parent) {
-        if (id == other.id) continue;   // saltar a sí mismo
+        if (id == other.id) continue;           // saltar a sí mismo
+        if (!blocks_other_enemies) continue;    // vecino no bloquea
 
-        // ── Condición 1: ambos en estado aggro (chase/ataque) ─────
-        // ESTATE_PATROL = 0 → no es aggro; cualquier otro estado → aggro.
-        // 'other.estate' = estado del llamante (instancia que llama el with).
-        // 'estate'       = estado del vecino (instancia iterada).
-        // Si alguno patrulla: se ignoran y pueden cruzarse libremente.
-        if (other.estate == ESTATE_PATROL || estate == ESTATE_PATROL) continue;
+        // ── Mismo piso ────────────────────────────────────
+        if (abs(y - other.y) > other.enemy_same_floor_tolerance) continue;
 
-        // ── Condición 2: ambos suficientemente cerca del jugador ──
-        // Si alguno está lejos, no tienen razón para competir por posición.
-        if (!instance_exists(obj_player)) continue;
-        var _caller_dist   = point_distance(other.x, other.y, obj_player.x, obj_player.y);
-        var _neighbor_dist = point_distance(x, y, obj_player.x, obj_player.y);
-        if (_caller_dist   >= other.enemy_queue_distance_to_player) continue;
-        if (_neighbor_dist >= enemy_queue_distance_to_player)       continue;
+        var _dist_x   = abs(x - other.x);
+        var _combined = enemy_separation_radius + other.enemy_separation_radius;
 
-        // ── Condición 3: mismo piso ───────────────────────────────
-        var _floor_dy = abs(other.y - y);
-        if (_floor_dy > other.enemy_same_floor_tolerance) continue;
+        // ── Soft push: solo si se solapan ─────────────────
+        if (_dist_x < _combined && _dist_x >= 1) {
+            // _dx_nc: vector del vecino → caller (positivo = caller está a la derecha)
+            var _dx_nc = other.x - x;
+            var _t     = 1 - (_dist_x / _combined);
+            _sep_x += sign(_dx_nc) * _t * _t * (other.enemy_separation_strength * 2);
+        }
 
-        // ── Todas las condiciones OK: calcular fuerza de separación ─
-        var _dx       = other.x - x;   // vector del vecino → al llamante
-        var _dist     = abs(_dx);
-        var _combined = other.enemy_separation_radius + enemy_separation_radius;
+        // ── Hard block: caller avanza hacia este vecino ───
+        // Solo cuando el caller tiene velocidad intencional (move_x != 0).
+        if (!_hard_blocked && other.move_x != 0) {
+            var _mdir = sign(other.move_x);
 
-        if (_dist < _combined && _dist >= 1) {
-            var _t    = 1 - (_dist / _combined);
-            var _push = sign(_dx) * _t * _t * (other.enemy_separation_strength * 2);
-            _sep_x += _push;
+            // ¿El vecino está en la dirección de movimiento del caller?
+            // (x - other.x): vector caller → vecino; si coincide con _mdir, el vecino está adelante
+            if (sign(x - other.x) == _mdir) {
+
+                // Gap entre bordes frontales de bbox (negativo = ya se solapan)
+                var _edge_gap;
+                if (_mdir > 0) {
+                    // caller mueve derecha; vecino a la derecha:
+                    //   gap = vecino_left_edge - caller_right_edge
+                    _edge_gap = (x + col_left) - (other.x + other.col_right);
+                } else {
+                    // caller mueve izquierda; vecino a la izquierda:
+                    //   gap = caller_left_edge - vecino_right_edge
+                    _edge_gap = (other.x + other.col_left) - (x + col_right);
+                }
+
+                if (_edge_gap < other.enemy_block_distance) {
+                    _hard_blocked           = true;
+                    other.blocking_enemy_id = id;   // guardar quién bloquea (debug)
+                }
+            }
         }
     }
 
-    // Clampear para evitar explosiones con 3+ enemigos apiñados
+    // ── Clamp del soft push ───────────────────────────────
     _sep_x = clamp(_sep_x, -enemy_separation_strength * 3, enemy_separation_strength * 3);
 
-    if (abs(_sep_x) > 0.5) {
+    // ── Aplicar ───────────────────────────────────────────
+    if (_hard_blocked) {
+        is_blocked_by_enemy = true;
+        // Cancelar movimiento intencional.
+        // Conservar soft push si hay solapamiento (para separar el overlap residual).
+        move_x = (abs(_sep_x) > 0.5) ? _sep_x : 0;
+    } else if (abs(_sep_x) > 0.5) {
         is_blocked_by_enemy = true;
         move_x += _sep_x;
     }

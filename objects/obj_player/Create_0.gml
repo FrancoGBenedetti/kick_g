@@ -39,7 +39,9 @@ spr_set = function(_spr) {
     if (sprite_index != _spr) {
         sprite_index = _spr;
         image_index  = 0;
-        image_speed  = 1;
+        // Usar time_scale para que el primer frame del sprite
+        // ya aparezca a la velocidad correcta (End Step lo confirmará).
+        image_speed  = global.time_scale;
     }
 };
 
@@ -54,6 +56,14 @@ air_accel         = 1.4;  // px/frame² (era 0.7)
 air_decel         = 0.6;  // px/frame² (era 0.3)
 
 vel_x = 0;
+
+// ── Knockback y hitstun del jugador ──────────────────────
+// Sobreescriben los defaults del actor_parent (5 / -3 / 12 / 0.70).
+// Ajustar PLAYER_KNOCKBACK_X/Y, PLAYER_HITSTUN, PLAYER_KNOCKBACK_DECAY en scr_config.
+default_knockback_x = PLAYER_KNOCKBACK_X;     // 24 px/frame horizontal
+knockback_y_force   = PLAYER_KNOCKBACK_Y;     // -8 px/frame vertical (salto hacia atrás)
+default_hitstun     = PLAYER_HITSTUN;          // 20 frames
+knockback_decay     = PLAYER_KNOCKBACK_DECAY;  // 0.80 por frame
 
 // ── Gravedad y caída (override del parent) ────────────────
 // Duplicados junto con jump_speed para mantener el arco exacto (mismos frames al apex).
@@ -91,6 +101,184 @@ dashTimer         = 0;
 dashCooldownTimer = 0;
 dash_was_grounded = false; // contexto del dash activo (para determinar estado post-dash)
 can_air_dash      = true;  // se consume al dashear en el aire; se restaura al aterrizar
+
+// ── Dash Attack ───────────────────────────────────────────
+dash_attack_used        = false; // solo un dash attack por dash; reset al iniciar dash nuevo
+dash_attack_damage_mult = 2;     // multiplicador de daño respecto a sword_damage_1
+
+// ══════════════════════════════════════════════════════════
+// SUPER ENERGY — medidor de recurso para futuros super ataques
+// ══════════════════════════════════════════════════════════
+// Acumulado por golpes exitosos (espada, arco, pogo, parry, counter).
+// No se gasta hasta que haya un super ataque real implementado.
+// Ajustar cantidades de recarga en scr_config (SUPER_ENERGY_RECHARGE_*).
+//
+// Flujo de uso futuro:
+//   1. Jugador acumula energía golpeando/parryeando.
+//   2. Cuando super_energy >= costo del super: try_start_super_attack(type).
+//   3. try_start_super_attack consume la energía via spend_super_energy.
+//   4. Se activa el estado de super ataque (PSTATE futuro).
+super_energy     = 0;
+super_energy_max = SUPER_ENERGY_MAX;   // 100
+
+// ── Cantidades de recarga por tipo de golpe ───────────────
+// Sobreescribir en Create_0 o en runtime para ajustar ritmo.
+sword_hit_energy_gain      = SUPER_ENERGY_RECHARGE_SWORD;        //  5 por golpe suelo
+air_sword_hit_energy_gain  = SUPER_ENERGY_RECHARGE_AIR_SWORD;    //  6 por golpe aéreo
+downward_slash_energy_gain = SUPER_ENERGY_RECHARGE_POGO;         //  8 por pogo hit
+arrow_hit_energy_gain      = SUPER_ENERGY_RECHARGE_ARROW;        //  5 por flecha
+parry_energy_gain          = SUPER_ENERGY_RECHARGE_PARRY;        // 10 por parry
+counter_energy_gain        = SUPER_ENERGY_RECHARGE_COUNTER;      // 15 por counter hit
+
+// ── Costos de futuros super ataques ──────────────────────
+// Consultados por can_use_super_attack / spend_super_energy.
+super_attack_cost_up      = SUPER_ATTACK_COST_UP;      // 25
+super_attack_cost_down    = SUPER_ATTACK_COST_DOWN;    // 25
+super_attack_cost_forward = SUPER_ATTACK_COST_FORWARD; // 30
+super_attack_cost_back    = SUPER_ATTACK_COST_BACK;    // 30
+
+// ── Flags de habilidad ────────────────────────────────────
+// ability_super_attacks = false → todos los supers bloqueados.
+// Los flags individuales se activarán al desbloquear cada super.
+ability_super_attacks        = true;    // sistema general habilitado
+ability_super_attack_up      = false;   // ↑ + ataque — NO implementado
+ability_super_attack_down    = false;   // ↓ + ataque — NO implementado
+ability_super_attack_forward = false;   // → + ataque — NO implementado
+ability_super_attack_back    = false;   // ← + ataque — NO implementado
+
+// ── gain_super_energy(_amount) ───────────────────────────
+// Suma energía respetando el tope. Llamado desde on_hit de hitboxes y
+// desde el parry branch de take_damage.
+// Si super_energy_recharge_enabled = false, la recarga queda desactivada
+// globalmente sin necesidad de cambiar ninguna otra variable.
+gain_super_energy = function(_amount) {
+    if (!variable_global_exists("super_energy_recharge_enabled")
+    ||   global.super_energy_recharge_enabled) {
+        super_energy = clamp(super_energy + _amount, 0, super_energy_max);
+    }
+};
+
+// ── spend_super_energy(_amount) ──────────────────────────
+// Resta energía si hay suficiente. Retorna true si se pudo gastar.
+// Llamar SOLO cuando hay un super ataque real para ejecutar.
+spend_super_energy = function(_amount) {
+    if (super_energy >= _amount) {
+        super_energy = max(0, super_energy - _amount);
+        return true;
+    }
+    return false;
+};
+
+// ── can_use_super_attack(_type) ──────────────────────────
+// Retorna true si el jugador tiene energía y la habilidad habilitada.
+// _type: "up" | "down" | "forward" | "back"
+can_use_super_attack = function(_type) {
+    if (!ability_super_attacks) return false;
+    if (is_dead)               return false;
+    if (hitstun_timer > 0)     return false;
+
+    var _cost    = 0;
+    var _ability = false;
+    switch (_type) {
+        case "up":
+            _cost    = super_attack_cost_up;
+            _ability = ability_super_attack_up;
+        break;
+        case "down":
+            _cost    = super_attack_cost_down;
+            _ability = ability_super_attack_down;
+        break;
+        case "forward":
+            _cost    = super_attack_cost_forward;
+            _ability = ability_super_attack_forward;
+        break;
+        case "back":
+            _cost    = super_attack_cost_back;
+            _ability = ability_super_attack_back;
+        break;
+    }
+    return _ability && (super_energy >= _cost);
+};
+
+// ── try_start_super_attack(_type) ────────────────────────
+// Intenta activar el super ataque del tipo dado.
+// Por ahora: siempre retorna false (no hay super ataques implementados).
+// Futuro: si can_use_super_attack → spend_super_energy → activar PSTATE.
+try_start_super_attack = function(_type) {
+    if (!can_use_super_attack(_type)) return false;
+
+    // TODO: implementar cada super ataque aquí cuando estén diseñados.
+    // Ejemplo futuro:
+    //   case "up":
+    //     spend_super_energy(super_attack_cost_up);
+    //     player_set_state(PSTATE.SUPER_UP);
+    //     return true;
+
+    show_debug_message("[SUPER] try_start_super_attack: type=" + _type
+        + "  energy=" + string(super_energy)
+        + "/" + string(super_energy_max)
+        + "  — NO implementado todavía");
+    return false;
+};
+
+// ── Air Sword Bounce ─────────────────────────────────────
+// Pequeño rebote vertical al golpear un enemigo con espada normal en el aire.
+// NO afecta al downward slash / pogo (que sobreescribe on_hit en la hitbox).
+// NO afecta al counter attack (estado dedicado con su propia física).
+// Ajustar con las macros AIR_SWORD_BOUNCE_SPEED / AIR_SWORD_BOUNCE_COOLDOWN en scr_config.
+//
+// apply_air_sword_bounce(): llamado desde on_hit de obj_sword_hitbox.
+//   • Si el player está en suelo → no hace nada.
+//   • Si el player ya sube más rápido que bounce_speed → no duplica impulso.
+//   • Si cae o está en apex → aplica move_y = air_sword_bounce_speed.
+//   • El cooldown impide re-bounce en el mismo hitbox (lifetime corto = 6 frames).
+air_sword_bounce_speed        = AIR_SWORD_BOUNCE_SPEED;      // -5 px/frame
+air_sword_bounce_cooldown     = 0;                           // frames restantes de anti-bounce
+air_sword_bounce_cooldown_max = AIR_SWORD_BOUNCE_COOLDOWN;  // 8 frames
+air_sword_bounce_flash_timer  = 0;   // frames del texto "AIR SWORD BOUNCE" en debug
+air_sword_bounce_flash_max    = 20;  // duración del texto visual
+
+apply_air_sword_bounce = function() {
+    // ── Guards ────────────────────────────────────────────
+    if (isGrounded)                              exit;  // solo en el aire
+    if (player_state == PSTATE.DOWN_SLASH)       exit;  // pogo tiene su propio rebote
+    if (player_state == PSTATE.COUNTER_ATTACK)   exit;  // counter tiene su propia física
+    if (air_sword_bounce_cooldown > 0)           exit;  // anti-multi-bounce
+    if (is_dead)                                 exit;
+    if (hitstun_timer > 0)                       exit;
+
+    // ── Aplicar impulso vertical ──────────────────────────
+    // Si el player ya sube más rápido que el bounce, no sumamos impulso extra.
+    // Si cae o está en apex (move_y >= 0) o sube despacio → aplicar bounce.
+    // Convención: move_y negativo = hacia arriba.
+    if (move_y > air_sword_bounce_speed) {
+        move_y = air_sword_bounce_speed;
+    }
+    // Si move_y ya es < bounce_speed el player sube más fuerte → sin cambio.
+
+    // ── Cooldown ──────────────────────────────────────────
+    air_sword_bounce_cooldown = air_sword_bounce_cooldown_max;
+
+    // ── Debug ─────────────────────────────────────────────
+    air_sword_bounce_flash_timer = air_sword_bounce_flash_max;
+    if (variable_global_exists("debug_air_sword_bounce") && global.debug_air_sword_bounce) {
+        show_debug_message("[DBG-AIR-BOUNCE] applied: move_y=" + string(move_y)
+            + "  state=" + string(player_state)
+            + "  grounded=" + string(isGrounded));
+    }
+};
+
+// ── Counter Attack ────────────────────────────────────────
+// Activado al presionar ataque durante la ventana post-parry.
+// El player se lanza hacia counter_target a counter_dash_speed.
+// Ajustar los valores vía scr_config (COUNTER_*).
+counter_target            = noone;   // enemigo a contraatacar; set por el parry
+counter_attack_active     = false;   // true mientras COUNTER_ATTACK está activo
+counter_dash_speed        = COUNTER_DASH_SPEED;         // 32 px/frame
+counter_dash_duration     = COUNTER_DASH_DURATION;      // 12 frames
+counter_damage_multiplier = COUNTER_DAMAGE_MULTIPLIER;  // ×3 sword_damage_1
+counter_hitbox_w          = COUNTER_HITBOX_W;           // 120 px
+counter_hitbox_h          = COUNTER_HITBOX_H;           //  80 px
 
 // ── Dash Jump Momentum ────────────────────────────────────
 // Salto ejecutado durante o inmediatamente después de un dash en suelo.
@@ -377,19 +565,38 @@ is_sliding     = false;
 //   afterimage_alpha_start  : opacidad inicial de cada copia (0.0–1.0)
 //   afterimage_fade_speed   : cuánto baja el alpha por frame (mayor = desaparece más rápido)
 //                             vida en frames ≈ afterimage_alpha_start / afterimage_fade_speed
-//                             Ej: 0.65 / 0.07 ≈ 9 frames de vida
+//                             Ej: 0.85 / 0.045 ≈ 19 frames de vida
 //   afterimage_spawn_rate   : cada cuántos frames se genera una copia (menor = más copias)
+//   afterimage_back_offset  : px que se empuja la copia hacia atrás (contra facing) al nacer,
+//                             para que NUNCA aparezca exactamente encima del player.
 //   afterimage_color        : tinte de las copias (default: blanco azulado — estilo neon)
 //   afterimage_max          : máximo de instancias simultáneas (evita spam en slowmo)
 //
+// FIX (no se veía nada): el .yy del objeto tenía "visible":false — en GMS2 eso
+// desactiva el Draw event por completo, sin importar el código. Corregido a true.
+// También se subió alpha/duración/spawn_rate para garantizar ≥4 copias visibles
+// simultáneas durante cualquier dash (16 frames de duración).
+//
+// Conteo simultáneo aproximado = vida_en_frames / spawn_rate
+//   19 / 2 ≈ 9 copias visibles en pantalla durante el dash completo ✓ (≥4 garantizado)
+//
 // Para desactivar rápido en debug: obj_player.afterimage_enabled = false
-afterimage_enabled    = true;
-afterimage_alpha_start = 0.65;
-afterimage_fade_speed  = 0.07;    // vida ≈ 9 frames
-afterimage_spawn_rate  = 3;       // cada 3 frames durante el dash
+afterimage_enabled     = true;
+afterimage_alpha_start = 0.85;    // antes 0.65 — más visible
+afterimage_fade_speed  = 0.045;   // antes 0.07 — vida ≈ 19 frames (antes ~9)
+afterimage_spawn_rate  = 2;       // antes 3 — copia cada 2 frames (más densidad)
 afterimage_spawn_timer = 0;       // contador interno — no modificar
-afterimage_color       = make_color_rgb(140, 200, 255);  // azul claro / neon
-afterimage_max         = 12;      // máximo simultáneo — previene leaks en slowmo
+afterimage_back_offset = 24;      // px hacia atrás del facing al nacer (separación visual)
+afterimage_color       = make_color_rgb(160, 210, 255);  // azul claro / neon
+afterimage_max         = 14;      // máximo simultáneo — previene leaks en slowmo
+
+// ── Debug temporal ─────────────────────────────────────────
+// global.debug_dash_afterimage = true → cada afterimage dibuja su alpha actual
+// como texto sobre sí mismo, y cada spawn deja un show_debug_message().
+// Toggle: F11 (ver obj_input/Step_1.gml).
+if (!variable_global_exists("debug_dash_afterimage")) {
+    global.debug_dash_afterimage = false;
+}
 
 // ── Función de spawn ──────────────────────────────────────
 // afterimage_spawn(): crea una copia del frame actual del player.
@@ -401,7 +608,11 @@ afterimage_spawn = function() {
     // Límite de instancias simultáneas (performance)
     if (instance_number(obj_dash_afterimage) >= afterimage_max) return noone;
 
-    var _inst = instance_create_layer(x, y, "Instances_1", obj_dash_afterimage);
+    // Empuje hacia atrás respecto al facing — evita que la primera copia
+    // quede exactamente debajo del sprite del player (invisible por overlap).
+    var _spawn_x = x - (facing * afterimage_back_offset);
+
+    var _inst = instance_create_layer(_spawn_x, y, "Instances_1", obj_dash_afterimage);
 
     with (_inst) {
         ghost_sprite = other.sprite_index;
@@ -413,6 +624,14 @@ afterimage_spawn = function() {
         ghost_color  = other.afterimage_color;
         ghost_fade   = other.afterimage_fade_speed;
         depth        = other.depth + 1;   // siempre detrás del player
+    }
+
+    if (global.debug_dash_afterimage) {
+        show_debug_message("[DBG-AFTERIMAGE] spawn — total activos="
+            + string(instance_number(obj_dash_afterimage))
+            + "  pos=(" + string(_spawn_x) + "," + string(y) + ")"
+            + "  sprite=" + string(sprite_index)
+            + "  frame=" + string(image_index));
     }
 
     return _inst;
@@ -437,9 +656,47 @@ hp     = max_hp;
 // Nota: la variable canónica es default_invuln (renombrada desde invulnerability_max).
 default_invuln = 90;   // ~1.5s — más i-frames que un enemigo genérico (base = 60)
 
-// Barra de vida: el jugador usa barra de HUD (Draw GUI), no barra flotante.
-// La barra flotante (Draw_0 del parent) se suprime con este flag.
-show_world_healthbar = false;
+// ── Valores de daño del jugador (override del parent) ─────
+// El parent tiene valores genéricos (knockback=5, vsp=-3, hitstun=12).
+// El jugador necesita retroalimentación más fuerte y alejamiento claro.
+default_knockback_x = 18;   // px/frame — retrocede ~200-250px en suelo
+knockback_y_force   = -6;   // impulso vertical al recibir daño (arriba)
+default_hitstun     = 18;   // frames (~0.3s a 60fps)
+knockback_decay     = 0.82; // decay lento → mayor distancia recorrida (parent: 0.70)
+
+// ── Parpadeo de invulnerabilidad ──────────────────────────
+// Ajustar: menor = parpadeo más rápido; 4 es el estándar Mega Man / Hollow Knight.
+blink_interval = 4;
+
+// ── Bloqueo de input durante recuperación de daño ──────────
+// Se activa cuando el player recibe daño (en take_damage → invulnerable=true).
+// Bloquea movimiento, ataque, dash, etc. EXCEPTO parry.
+// Un parry perfecto durante este estado lo cancela inmediatamente.
+// Esto hace que ser golpeado sea más peligroso en combates multi-enemigos.
+damage_recovery_lock = false;
+damage_recovery_lock_timer = 0;
+
+// ── Funciones helper para verificar si el player puede actuar ──
+player_can_move = function() {
+    return !damage_recovery_lock && !is_dead;
+};
+
+player_can_attack = function() {
+    return !damage_recovery_lock && !is_dead;
+};
+
+player_can_dash = function() {
+    return !damage_recovery_lock && !is_dead;
+};
+
+player_can_parry = function() {
+    // Parry está permitido INCLUSO durante damage_recovery_lock
+    return ability_parry && !is_dead;
+};
+
+player_can_bow = function() {
+    return !damage_recovery_lock && !is_dead;
+};
 
 // on_damage: reacción específica del jugador al recibir daño.
 // Sobreescribe el stub del parent. Responsabilidades:
@@ -447,6 +704,25 @@ show_world_healthbar = false;
 //   2. Cancelar modo de apuntado aéreo del arco
 //   3. DEBUG — confirmar daño recibido (quitar cuando el sistema esté validado)
 on_damage = function(_amount, _source) {
+    // ── Cancelar dash si estaba activo ────────────────────────
+    // El knockback sobreescribe move_x durante hitstun, pero necesitamos
+    // cancelar el estado DASH para que la física no lo mantenga activo.
+    if (player_state == PSTATE.DASH) {
+        dashTimer       = 0;
+        dash_jump_grace = 0;
+        player_set_state(isGrounded ? PSTATE.IDLE : PSTATE.FALL);
+    }
+
+    // ── Cancelar momentum de dash jump ────────────────────────
+    // Si el player estaba en el aire con boost de dash_jump, interrumpirlo.
+    // El knockback aplicará su propia velocidad horizontal.
+    dash_jump_active = false;
+    dash_jump_grace  = 0;
+
+    // ── Resetear vel_x ─────────────────────────────────────────
+    // Evita que al salir del hitstun el player reanude con la velocidad previa.
+    vel_x = 0;
+
     // ── Cancelar block si estaba bloqueando (golpe desde atrás) ─
     // take_damage solo llama on_damage si el golpe NO fue interceptado,
     // es decir: ya pasó por las ramas de parry/block sin ser absorbido.
@@ -466,7 +742,9 @@ on_damage = function(_amount, _source) {
     if (player_state == PSTATE.ATTACK_1
     ||  player_state == PSTATE.ATTACK_2
     ||  player_state == PSTATE.ATTACK_3
-    ||  player_state == PSTATE.DOWN_SLASH) {
+    ||  player_state == PSTATE.DOWN_SLASH
+    ||  player_state == PSTATE.DASH_ATTACK
+    ||  player_state == PSTATE.COUNTER_ATTACK) {
         combo_step       = 0;
         attack_buffer    = false;
         has_pogo_bounced = false;
@@ -551,7 +829,7 @@ ability_walljump       = true;
 ability_air_dash       = true;   // dash aéreo (consume can_air_dash)
 ability_downward_slash = true;   // ↓ + Z en el aire
 ability_parry          = true;   // parry perfecto (C en ventana de 8 frames)
-ability_counterattack  = false;  // contraataque post-parry — NO implementado todavía
+ability_counterattack  = true;   // contraataque post-parry — presionar ataque en ventana post-parry
 
 // ══════════════════════════════════════════════════════════
 // BLOCK / PARRY
@@ -584,6 +862,12 @@ parry_active        = false;   // sincronizado con is_parrying en Step_0 (secci�
 parry_success       = false;   // flag de un parry exitoso — true ≈ 3 frames
 parry_success_timer = 0;       // cuenta regresiva; parry_success = (timer > 0)
 
+// ── Popup visual de parry exitoso ─────────────────────────
+// Independiente de parry_success_timer (que dura solo 3 frames reales).
+// Este timer dura más para que el ! sea visible sobre la cabeza del jugador.
+parry_popup_timer     = 0;
+parry_popup_timer_max = 28;   // frames reales — ajustar para más/menos duración
+
 // ── take_damage override: intercepta block / parry ────────
 // Guarda referencia al método base (ligado a 'id') antes de sobreescribir.
 // Llamar a base_take_damage(_amount, _source) delega al parent sin super().
@@ -611,11 +895,15 @@ take_damage = function(_amount, _source) {
         // ── Flags de parry ────────────────────────────────
         parry_success_timer  = 3;          // parry_success visible por ~3 frames reales
         parry_success        = true;
+        parry_popup_timer    = parry_popup_timer_max;   // activa el ! visual sobre la cabeza
         parry_slow_timer     = PARRY_SLOW_DURATION;
         parry_window_timer   = 0;
         is_parrying          = false;
         parry_active         = false;
         parry_cooldown_timer = PARRY_COOLDOWN_MAX;
+
+        // ── Energía por parry ─────────────────────────────
+        gain_super_energy(parry_energy_gain);
 
         // ── Ventana de contraataque ───────────────────────
         // Se abre internamente aunque ability_counterattack = false.
@@ -630,27 +918,52 @@ take_damage = function(_amount, _source) {
         if (!ability_counterattack) {
             can_counterattack   = false;
             counterattack_timer = 0;
+            counter_target      = noone;
         }
 
         // ── Stun al atacante (solo ataques melee) ─────────
-        // Identifica al owner del damage source y le aplica
+        // Identifica al enemigo dueño del ataque y le aplica
         // knockback + hitstun extendido + ventana de contraataque.
         //
-        // Condiciones:
-        //   • _source existe y tiene attack_type (es un damage source)
-        //   • attack_type == ATTACK_TYPE_MELEE (no proyectiles)
-        //   • _source.owner existe y tiene parried_stun_duration
-        //     (es un enemigo con soporte de parry stun)
-        //
-        // Proyectiles (ATTACK_TYPE_PROJECTILE) se destruyen por el
-        // sistema existente pero NO noquean al arquero.
-        if (instance_exists(_source)
-        &&  variable_instance_exists(_source, "attack_type")
-        &&  _source.attack_type == ATTACK_TYPE_MELEE
-        &&  instance_exists(_source.owner)
-        &&  variable_instance_exists(_source.owner, "parried_stun_duration")) {
+        // Dos rutas para resolver el attacker:
+        //   A) _source es la hitbox (attack_type + owner): normal
+        //      → _source.attack_type == MELEE && _source.owner tiene parried_stun_duration
+        //   B) _source es el enemigo directamente (hit_source = enemy_id):
+        //      → _source tiene parried_stun_duration y no es proyectil
+        //      Caso del swordsman: hit_source = _enemy_id, no la hitbox.
+        var _attacker = noone;
 
-            var _attacker = _source.owner;
+        if (instance_exists(_source)) {
+            if (variable_instance_exists(_source, "attack_type")
+            &&  _source.attack_type == ATTACK_TYPE_MELEE
+            &&  instance_exists(_source.owner)
+            &&  variable_instance_exists(_source.owner, "parried_stun_duration")) {
+                // Ruta A: _source es la hitbox con owner = enemigo
+                _attacker = _source.owner;
+                show_debug_message("[DBG-PARRY] Ruta A: hitbox→owner=" + object_get_name(_attacker.object_index));
+            } else if (variable_instance_exists(_source, "parried_stun_duration")
+                   &&  !variable_instance_exists(_source, "can_be_parried")) {
+                // Ruta B: _source es el enemigo directamente (hit_source apunta al enemy)
+                // Guard extra: no tiene can_be_parried (para no confundir con una hitbox enemiga)
+                _attacker = _source;
+                show_debug_message("[DBG-PARRY] Ruta B: direct enemy=" + object_get_name(_attacker.object_index));
+            } else if (variable_instance_exists(_source, "parried_stun_duration")) {
+                // Ruta B sin guard — cualquier instancia con parried_stun_duration
+                _attacker = _source;
+                show_debug_message("[DBG-PARRY] Ruta B2: enemy (fallback)=" + object_get_name(_attacker.object_index));
+            }
+        }
+
+        show_debug_message("[DBG-PARRY] _source=" + string(_source)
+            + "  attacker_found=" + string(instance_exists(_attacker))
+            + "  parry_slow_timer=" + string(parry_slow_timer));
+
+        if (instance_exists(_attacker)) {
+            // ── Guardar target para el counter ────────────
+            // Se almacena SIEMPRE que se identifica el attacker,
+            // aunque ability_counterattack = false (limpiado arriba).
+            counter_target = _attacker;
+
             // Dirección del knockback: alejarse del jugador
             var _kdir = sign(_attacker.x - x);
             if (_kdir == 0) _kdir = -facing;
@@ -662,11 +975,40 @@ take_damage = function(_amount, _source) {
             _attacker.can_be_countered    = true;
             _attacker.counter_window_timer = _attacker.counter_window_duration;
 
+            // ── Estado visual vulnerable ──────────────────
+            if (variable_instance_exists(_attacker, "parried_vulnerable")) {
+                _attacker.parried_vulnerable       = true;
+                _attacker.parried_vulnerable_timer = _attacker.parried_vulnerable_duration;
+            }
+
+            // ── Blink visual del atacante ─────────────────
+            // Reutiliza el sistema de hit flash del enemy_parent.
+            // Duración del parpadeo: parried_stun_duration (mismo timer que el stun).
+            if (variable_instance_exists(_attacker, "enemy_hit_flash_timer")) {
+                _attacker.enemy_hit_flash       = true;
+                _attacker.enemy_hit_flash_timer = _attacker.parried_stun_duration;
+            }
+
+            // ── Cancelar hitbox activa del atacante ───────
+            // Si el atacante tiene una hitbox de espada activa, destruirla
+            // para que no siga dañando durante el stun del parry.
+            if (variable_instance_exists(_attacker, "sword_hitbox_id")
+            &&  instance_exists(_attacker.sword_hitbox_id)) {
+                with (_attacker.sword_hitbox_id) instance_destroy();
+                _attacker.sword_hitbox_id = noone;
+            }
+
             show_debug_message("[DBG-PARRY] PERFECT - ENEMY STUNNED: "
                 + object_get_name(_attacker.object_index)
                 + "  stun=" + string(_attacker.parried_stun_duration)
                 + "  counter_window=" + string(_attacker.counter_window_duration));
         }
+
+        // ── Cancelar bloqueo de recuperación de daño ────────
+        // Un parry perfecto cancela inmediatamente el estado de invulnerabilidad
+        // que había de un daño anterior. El jugador recupera control total.
+        damage_recovery_lock = false;
+        damage_recovery_lock_timer = 0;
 
         return;   // sin daño, sin knockback al jugador, sin hitstun
     }
@@ -683,4 +1025,14 @@ take_damage = function(_amount, _source) {
     // ── DAÑO NORMAL ──────────────────────────────────────
     // Sin block, o ataque desde atrás.
     base_take_damage(_amount, _source);
+
+    // ── Activar bloqueo de input durante recuperación de daño ──
+    // El parent activó is_invulnerable=true y timers en base_take_damage.
+    // Ahora activamos el bloqueo que impide movimiento/ataque/dash
+    // excepto parry, que es la única defensa activa durante i-frames.
+    if (is_invulnerable) {
+        damage_recovery_lock = true;
+        damage_recovery_lock_timer = invuln_timer;
+        show_debug_message("[PLAYER] Daño recibido: damage_recovery_lock activado por " + string(damage_recovery_lock_timer) + " frames");
+    }
 };

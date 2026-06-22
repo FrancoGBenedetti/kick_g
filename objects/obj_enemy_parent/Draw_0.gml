@@ -67,6 +67,49 @@ if (variable_global_exists("debug_enemy_ai") && global.debug_enemy_ai) {
     draw_set_alpha(_da2);
 }
 
+// ── Debug knockback del enemigo ───────────────────────────
+if (variable_global_exists("debug_knockback") && global.debug_knockback) {
+    var _dc_kb = draw_get_color();
+    var _da_kb = draw_get_alpha();
+    draw_set_alpha(1.0);
+    draw_set_halign(fa_center);
+    draw_set_valign(fa_bottom);
+
+    var _kb_active = (hitstun_timer > 0);
+    draw_set_color(_kb_active ? c_red : make_color_rgb(160,160,160));
+    draw_text(x, y + col_top - 34,
+        "KB:" + (_kb_active ? "ON" : "off")
+        + "  hsp:" + string_format(knockback_x, 1, 1)
+        + "  vsp:" + string_format(move_y, 1, 1)
+        + "  stun:" + string(hitstun_timer) + "/" + string(default_hitstun)
+        + "  ×" + string_format(enemy_knockback_multiplier, 1, 1));
+
+    draw_set_halign(fa_left);
+    draw_set_valign(fa_top);
+    draw_set_color(_dc_kb);
+    draw_set_alpha(_da_kb);
+}
+
+// ── Debug counter attack (enemigo vulnerable) ─────────────
+if (variable_global_exists("debug_counterattack") && global.debug_counterattack) {
+    var _dc_ca2 = draw_get_color();
+    var _da_ca2 = draw_get_alpha();
+    draw_set_alpha(1.0);
+    draw_set_halign(fa_center);
+    draw_set_valign(fa_bottom);
+
+    draw_set_color(parried_vulnerable ? c_orange : make_color_rgb(140,140,140));
+    draw_text(x, y + col_top - 50,
+        "VUL:" + (parried_vulnerable ? "YES" : "no")
+        + "  t:" + string(parried_vulnerable_timer)
+        + "  ctr:" + (can_be_countered ? "YES" : "no"));
+
+    draw_set_halign(fa_left);
+    draw_set_valign(fa_top);
+    draw_set_color(_dc_ca2);
+    draw_set_alpha(_da_ca2);
+}
+
 // ── Debug de colisión entre enemigos (F5) ─────────────────
 if (!variable_global_exists("debug_enemy_collision") || !global.debug_enemy_collision) exit;
 
@@ -74,15 +117,46 @@ var _dc = draw_get_color();
 var _da = draw_get_alpha();
 
 // ── Radio de separación ───────────────────────────────────
-// Círculo/caja que muestra el umbral de repulsión.
-// Verde = sin contacto con otro enemigo.
-// Naranja = empujando a otro enemigo.
-var _col = is_blocked_by_enemy ? make_color_rgb(255, 140, 0) : make_color_rgb(0, 200, 80);
+// Verde   = sin bloqueo
+// Naranja = soft push activo (solapamiento)
+// Rojo    = hard block activo (detenido por bloqueador)
+var _hard = instance_exists(blocking_enemy_id);
+var _col  = _hard
+            ? c_red
+            : (is_blocked_by_enemy ? make_color_rgb(255, 140, 0) : make_color_rgb(0, 200, 80));
 draw_set_color(_col);
 draw_set_alpha(0.15);
 draw_circle(x, y, enemy_separation_radius, false);
 draw_set_alpha(0.7);
 draw_circle(x, y, enemy_separation_radius, true);
+
+// ── Zona de detección frontal (hard block range) ──────────
+// Rectángulo delante del enemigo mostrando enemy_block_distance.
+if (move_x != 0 || is_blocked_by_enemy) {
+    var _detect_dir = (move_x != 0) ? sign(move_x) : facing;
+    var _edge_x     = (_detect_dir > 0) ? (x + col_right) : (x + col_left);
+    var _zone_x1    = (_detect_dir > 0) ? _edge_x : (_edge_x - enemy_block_distance);
+    var _zone_x2    = (_detect_dir > 0) ? (_edge_x + enemy_block_distance) : _edge_x;
+    var _zone_y1    = y + col_top;
+    var _zone_y2    = y + col_bottom;
+    draw_set_color(_hard ? c_red : make_color_rgb(255, 200, 0));
+    draw_set_alpha(0.18);
+    draw_rectangle(_zone_x1, _zone_y1, _zone_x2, _zone_y2, false);
+    draw_set_alpha(0.55);
+    draw_rectangle(_zone_x1, _zone_y1, _zone_x2, _zone_y2, true);
+}
+
+// ── Línea hacia el bloqueador ─────────────────────────────
+if (_hard && instance_exists(blocking_enemy_id)) {
+    draw_set_color(c_red);
+    draw_set_alpha(0.85);
+    draw_line_width(x, y, blocking_enemy_id.x, blocking_enemy_id.y, 2);
+    draw_set_alpha(1.0);
+    draw_set_color(c_white);
+    draw_set_halign(fa_center);
+    draw_set_valign(fa_bottom);
+    draw_text(x, y + col_top - 16, "BLOCKED BY: " + object_get_name(blocking_enemy_id.object_index));
+}
 
 // ── Cooldown de contacto ──────────────────────────────────
 // Línea corta hacia el jugador si puede hacer daño (cooldown = 0).
@@ -102,49 +176,37 @@ if (instance_exists(obj_player) && contact_damage_enabled) {
 }
 
 // ── Líneas hacia vecinos: razón de bloqueo o paso ─────────
-// Color / label según la condición que determina si se bloquean o no.
-//
-//   VERDE  "queue/block"      → ambos en aggro + cerca + mismo piso → separación activa
-//   NARANJA "patrol pass"     → al menos uno patrulla → se cruzan
-//   CYAN   "not close enough" → alguno está lejos del jugador → se cruzan
-//   GRIS   "diff floor"       → diferente piso → se cruzan
+// Color / label según las nuevas condiciones del sistema unificado:
+//   ROJO   "hard blocked"    → este enemigo está detenido por el vecino (hard block activo)
+//   VERDE  "active"          → mismo piso + ambos flags → separación/bloqueo activos
+//   NARANJA "no-block flag"  → vecino no bloquea (blocks_other_enemies=false)
+//   GRIS   "diff floor"      → diferente piso → se ignoran
 with (obj_enemy_parent) {
     if (id == other.id) continue;
 
     var _ndx   = other.x - x;
     var _ndy   = other.y - y;
     var _ndist = sqrt(_ndx * _ndx + _ndy * _ndy);
-    if (_ndist > other.enemy_separation_radius * 5) continue;   // demasiado lejos, no dibujar
+    if (_ndist > other.enemy_separation_radius * 6) continue;   // demasiado lejos, no dibujar
 
-    // Evaluar cada condición en orden (misma lógica que Step)
-    var _label = "";
-    var _col   = c_white;
+    var _label    = "";
+    var _col      = c_white;
+    var _diff_floor     = (abs(_ndy) > other.enemy_same_floor_tolerance);
+    var _no_block_flag  = (!blocks_other_enemies || !other.blocked_by_other_enemies);
+    var _is_my_blocker  = (other.blocking_enemy_id == id);
 
-    var _diff_floor = (abs(_ndy) > other.enemy_same_floor_tolerance);
-    var _patrol_pass = (other.estate == ESTATE_PATROL || estate == ESTATE_PATROL);
-    var _p_exists    = instance_exists(obj_player);
-    var _not_close   = false;
-    if (_p_exists) {
-        var _caller_dp   = point_distance(other.x, other.y, obj_player.x, obj_player.y);
-        var _neighbor_dp = point_distance(x, y, obj_player.x, obj_player.y);
-        _not_close = (_caller_dp >= other.enemy_queue_distance_to_player
-                   || _neighbor_dp >= enemy_queue_distance_to_player);
-    } else {
-        _not_close = true;
-    }
-
-    if (_diff_floor) {
+    if (_is_my_blocker) {
+        _col   = c_red;
+        _label = "BLOCKING";
+    } else if (_diff_floor) {
         _col   = make_color_rgb(140, 140, 140);
         _label = "diff floor";
-    } else if (_patrol_pass) {
+    } else if (_no_block_flag) {
         _col   = make_color_rgb(255, 160, 40);
-        _label = "patrol pass";
-    } else if (_not_close) {
-        _col   = make_color_rgb(0, 200, 220);
-        _label = "not close";
+        _label = "no-block flag";
     } else {
         _col   = make_color_rgb(80, 230, 80);
-        _label = "queue/block";
+        _label = "active";
     }
 
     draw_set_color(_col);

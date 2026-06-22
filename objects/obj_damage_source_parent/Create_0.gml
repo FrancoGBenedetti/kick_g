@@ -120,19 +120,29 @@ on_hit = function(_target) {
 //   try_hit(_found);   // noone retorna false sin crash
 try_hit = function(_target) {
     // ── Regla 1: target debe existir ─────────────────────
-    if (!instance_exists(_target)) return false;
+    if (!instance_exists(_target)) {
+        show_debug_message("[TRY-HIT] TARGET NO EXISTE: " + string(_target));
+        return false;
+    }
 
     // ── Regla 2: respetar can_hit_owner ──────────────────
-    if (!can_hit_owner && _target == owner) return false;
+    if (!can_hit_owner && _target == owner) {
+        show_debug_message("[TRY-HIT] TARGET ES OWNER + can_hit_owner=false");
+        return false;
+    }
 
     // ── Regla 3: anti-multi-hit ───────────────────────────
-    if (ds_list_find_index(hit_list, _target) != -1) return false;
+    if (ds_list_find_index(hit_list, _target) != -1) {
+        show_debug_message("[TRY-HIT] TARGET YA EN HIT_LIST");
+        return false;
+    }
     ds_list_add(hit_list, _target);
 
     // ── Aplicar daño con fuente correcta ─────────────────
     var _src = (hit_source != noone && instance_exists(hit_source))
                ? hit_source
                : id;
+    show_debug_message("[TRY-HIT] APLICANDO DAÑO: target=" + object_get_name(_target.object_index) + " damage=" + string(damage) + " source=" + string(_src));
     _target.take_damage(damage, _src);
 
     // ── Hook de efectos ───────────────────────────────────

@@ -26,22 +26,29 @@ x = owner.x + owner.facing * hitbox_offset_x;
 y = owner.y + hitbox_offset_y;
 
 // ── Detección y aplicación de daño ────────────────────────
-// collision_rectangle_list: puede golpear MÚLTIPLES enemigos
-// en el mismo frame (área de efecto del swing).
-// try_hit() maneja owner-exclusion y anti-multi-hit internamente.
-var _x1 = x - hitbox_w * 0.5;
-var _y1 = y - hitbox_h * 0.5;
-var _x2 = x + hitbox_w * 0.5;
-var _y2 = y + hitbox_h * 0.5;
+// Si counter_target_id está asignado: solo golpear a ese enemigo específico.
+// Esto garantiza que el counter attack no dañe enemigos no relacionados.
+// Comportamiento normal (counter_target_id == noone): cualquier actor en el área.
+if (counter_target_id != noone && instance_exists(counter_target_id)) {
+    // Modo counter: solo el target parryeado
+    try_hit(counter_target_id);
+} else if (counter_target_id == noone) {
+    // Modo normal: cualquier actor dentro del rectángulo
+    var _x1 = x - hitbox_w * 0.5;
+    var _y1 = y - hitbox_h * 0.5;
+    var _x2 = x + hitbox_w * 0.5;
+    var _y2 = y + hitbox_h * 0.5;
 
-var _temp = ds_list_create();
-var _count = collision_rectangle_list(_x1, _y1, _x2, _y2,
-                                      obj_actor_parent, false, true,
-                                      _temp, false);
-for (var _i = 0; _i < _count; _i++) {
-    try_hit(_temp[| _i]);
+    var _temp = ds_list_create();
+    var _count = collision_rectangle_list(_x1, _y1, _x2, _y2,
+                                          obj_actor_parent, false, true,
+                                          _temp, false);
+    for (var _i = 0; _i < _count; _i++) {
+        try_hit(_temp[| _i]);
+    }
+    ds_list_destroy(_temp);
 }
-ds_list_destroy(_temp);
+// Si counter_target_id != noone pero el target ya no existe: no golpear nada.
 
 // ── Lifetime ──────────────────────────────────────────────
 lifetime--;
