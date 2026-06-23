@@ -15,7 +15,9 @@ if (global.debug_collision_view) {
         "reach=" + string(enemy_attack_reach) + " h=" + string(enemy_attack_height));
 }
 
-if (global.debug_enemy_attacks) {
+// Mostrar debug si: global.debug_dev (modo dev) O global.debug_enemy_attacks (F3)
+var _show_debug = (variable_global_exists("debug_dev") && global.debug_dev) || global.debug_enemy_attacks;
+if (_show_debug) {
 
     var _dc = draw_get_color();
     var _da = draw_get_alpha();

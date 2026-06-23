@@ -1,23 +1,38 @@
 // ══════════════════════════════════════════════════════════
 // OBJ_SWORD_HITBOX — Create
-// Hitbox temporal de espada. Hereda de obj_damage_source_parent
+// Hitbox temporal de espada/lanza. Hereda de obj_damage_source_parent
 // todo lo relativo a daño, anti-multi-hit y cleanup de memoria.
 //
-// Spawneado por obj_player al inicio de cada estado ATTACK_N.
-// El player lo configura inmediatamente después del spawn:
+// ARQUITECTURA DE ATAQUE:
+// • La máscara de colisión física del player (~56px ancho) en col_left/col_right
+//   permanece compacta alrededor del cuerpo.
+// • Esta hitbox es INDEPENDIENTE y se extiende hacia adelante.
+// • No afecta a la colisión del player con paredes/plataformas.
+// • Solo detecta enemigos y les aplica daño.
+//
+// CONFIGURACIÓN:
+// Spawneado por obj_player al inicio de cada ataque.
+// El player asigna parámetros inmediatamente:
 //
 //   with (sword_hitbox_id) {
-//       owner      = _player_id;   // dueño (jugador)
-//       damage     = _hb_dmg;      // daño del golpe
-//       lifetime   = _hb_life;     // frames de vida
-//       hitbox_offset_x = ...;
-//       hitbox_offset_y = ...;
-//       hitbox_w        = ...;
-//       hitbox_h        = ...;
+//       owner           = _player_id;    // dueño (jugador)
+//       damage          = _hb_dmg;       // daño del golpe
+//       lifetime        = _hb_life;      // frames de vida
+//       hitbox_offset_x = ...;           // offset horizontal (relativo a facing)
+//       hitbox_offset_y = ...;           // offset vertical
+//       hitbox_w        = ...;           // ancho total
+//       hitbox_h        = ...;           // alto total
+//       is_pogo         = ...;           // true si es downward slash
 //   }
 //
-// hit_source se sincroniza con owner cada frame en Step,
-// garantizando knockback correcto incluso si owner cambia.
+// POSICIONAMIENTO:
+// x = owner.x + owner.facing * hitbox_offset_x
+// y = owner.y + hitbox_offset_y
+// El hitbox se dibuja como rectángulo centrado en (x, y).
+//
+// DESACTIVACIÓN:
+// Durante el paso de turnos, se sincroniza hit_source = owner
+// para garantizar knockback correcto incluso con movimiento rápido del player.
 // ══════════════════════════════════════════════════════════
 event_inherited();   // owner, damage, can_hit_owner, hit_source,
                      // hit_list, on_hit, try_hit — del parent

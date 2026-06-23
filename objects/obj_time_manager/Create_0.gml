@@ -45,6 +45,15 @@ global.debug_collision_view = false; // false = normal gameplay (default)
 
 // ── Inicializar debug collision view ──────────────────────
 // La capa de colisión se oculta al inicio del room.
-// Se puede mostrar/ocultar durante gameplay con tecla H.
+// Se puede mostrar/ocultar durante gameplay con tecla 5 (modo dev).
 global.debug_collision_view = false;
 scr_hide_collision_layer();
+
+// ── Inicializar sistema de dificultad ──────────────────────
+// Configura global.difficulty, global.config y global.current_config.
+// También define funciones: set_difficulty(), get_difficulty_string().
+global.debug_dev = false;         // modo dev: muestra hitboxes, colisiones, datos
+global.debug_difficulty = false;  // toggle HUD de dificultad
+scr_difficulty_config();
+show_debug_message("[INIT] Dificultad: " + get_difficulty_string());
+show_debug_message("[INIT] Controles: [5]Dev [6]Easy [7]Normal [8]Hard [9]HUD");

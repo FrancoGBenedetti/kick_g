@@ -249,14 +249,9 @@ if (is_invulnerable) {
     image_alpha = 1.0;
 }
 
-// ── DEBUG: tecla H → daño directo ────────────────────────
-// Simula un golpe recibido sin necesitar un enemigo en escena.
-// La fuente es noone → knockback usa -facing como dirección de fallback.
-// is_invulnerable bloquea el segundo press mientras duren los i-frames.
-// QUITAR antes de shipping.
-if (keyboard_check_pressed(ord("H"))) {
-    take_damage(1, noone);
-}
+// ── DEBUG: daño directo eliminado ────────────────────────
+// Antes: H para aplicar daño de prueba.
+// Ahora: usar sistema de dificultad y enemigos de prueba.
 
 // ══════════════════════════════════════════════════════════
 // GATE — física y gameplay al ritmo de time_scale
@@ -853,6 +848,17 @@ if (_in_attack && player_state != PSTATE.DOWN_SLASH && player_state != PSTATE.DA
     // ── Primer frame del estado: spawnar hitbox ───────────
     // attack_timer aún tiene el valor máximo porque el enter hook
     // lo asignó y todavía no se ha decrementado en este frame.
+    // La hitbox es INDEPENDIENTE de la máscara de colisión del player.
+    //
+    // GEOMETRÍA DE ATAQUE (facing = +1):
+    //   Rect X: [x + sword_hitbox_x] → [x + sword_hitbox_x + sword_hitbox_w]
+    //   Rect Y: [y + sword_hitbox_y - sword_hitbox_h/2] → [y + sword_hitbox_y + sword_hitbox_h/2]
+    // O usando variables nuevas:
+    //   Rect X: [x + player_attack_start_offset] → [x + player_attack_start_offset + player_attack_reach]
+    //   Rect Y: [y + player_attack_offset_y - player_attack_height/2] → [y + player_attack_offset_y + player_attack_height/2]
+    //
+    // AJUSTE VISUAL: Si el golpe es muy corto/largo o está muy arriba/abajo,
+    // modificar SWORD_HITBOX_* en scr_config.gml o las nuevas variables.
     if (attack_timer == _max_t) {
         // Capturar el ID del jugador ANTES de entrar al with.
         // Dentro de un with, 'other' refiere al contexto anterior y puede ser

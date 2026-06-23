@@ -52,11 +52,18 @@ ESTATE_ATTACK_ACTIVE = 3;   // hitbox activa
 ESTATE_COOLDOWN      = 4;   // recuperación post-ataque
 
 // ── Parámetros de ataque ──────────────────────────────────
-attack_windup        = ESWORDSMAN_WINDUP;    // frames de anticipación
+// Los valores base se configuran con macros de scr_config.
+// Se aplican multiplicadores de dificultad si global.current_config existe.
+var _diff_mult = variable_global_exists("current_config") ? global.current_config : {
+	enemy_attack_windup_multiplier: 1.0,
+	enemy_attack_cooldown_multiplier: 1.0
+};
+
+attack_windup        = ceil(ESWORDSMAN_WINDUP * _diff_mult.enemy_attack_windup_multiplier);    // frames de anticipación
 attack_windup_timer  = 0;
-attack_active_time   = ESWORDSMAN_ACTIVE;    // frames de hitbox activa
+attack_active_time   = ESWORDSMAN_ACTIVE;    // frames de hitbox activa (no multiplicado)
 attack_active_timer  = 0;
-attack_cooldown_max  = ESWORDSMAN_COOLDOWN;  // frames entre ataques
+attack_cooldown_max  = ceil(ESWORDSMAN_COOLDOWN * _diff_mult.enemy_attack_cooldown_multiplier);  // frames entre ataques
 enemy_damage         = ESWORDSMAN_DAMAGE;    // daño por golpe
 
 // Ajuste fino: si el enemigo entró en WINDUP pero el jugador se alejó

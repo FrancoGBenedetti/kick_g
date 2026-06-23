@@ -802,3 +802,35 @@ draw_triangle(
 
 draw_set_color(_prev_color);
 draw_set_alpha(_prev_alpha);
+
+// ══════════════════════════════════════════════════════════
+// DEBUG: MODO DEV — Info de estado del player
+// ══════════════════════════════════════════════════════════
+if (variable_global_exists("debug_dev") && global.debug_dev) {
+    var _dbg_x = x - 60;
+    var _dbg_y = y + col_bottom + 20;
+    var _dbg_col = c_lime;
+
+    draw_set_color(_dbg_col);
+    draw_set_alpha(0.9);
+    draw_set_halign(fa_left);
+    draw_set_valign(fa_top);
+
+    var _state_names = ["IDLE", "RUN", "JUMP", "FALL", "WALL", "ATTACK_1", "ATTACK_2", "ATTACK_3",
+                        "DASH", "BLOCK", "DOWN_SLASH", "DASH_ATTACK", "COUNTER_ATTACK", "DEAD"];
+    var _state_str = (_state_names[player_state] != undefined) ? _state_names[player_state] : string(player_state);
+
+    draw_text(_dbg_x, _dbg_y, "[DEV] State: " + _state_str);
+    draw_text(_dbg_x, _dbg_y + 12, "HP: " + string(hp) + "/" + string(max_hp));
+    draw_text(_dbg_x, _dbg_y + 24, "Diff: " + get_difficulty_string());
+
+    if (is_invulnerable) {
+        draw_set_color(c_yellow);
+        draw_text(_dbg_x, _dbg_y + 36, "INVULN: " + string(invuln_timer) + "f");
+    }
+
+    if (damage_recovery_lock) {
+        draw_set_color(c_red);
+        draw_text(_dbg_x, _dbg_y + 48, "LOCK: " + string(damage_recovery_lock_timer) + "f");
+    }
+}

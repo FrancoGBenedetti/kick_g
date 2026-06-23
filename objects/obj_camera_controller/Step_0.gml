@@ -33,13 +33,3 @@ if (keyboard_check_pressed(vk_f6)) {
 if (keyboard_check_pressed(vk_f7)) {
     camera_debug_visible = !camera_debug_visible;
 }
-
-// H → toggle modo debug collision view (colisión, bbox del player, hitboxes enemigos, etc.)
-if (keyboard_check_pressed(ord("H"))) {
-    global.debug_collision_view = !global.debug_collision_view;
-    var _layer = layer_get_id(COLLISION_LAYER);
-    if (_layer != -1) {
-        layer_set_visible(_layer, global.debug_collision_view);
-    }
-    show_debug_message("[DEBUG] Modo collision view: " + (global.debug_collision_view ? "ACTIVO" : "DESACTIVO"));
-}

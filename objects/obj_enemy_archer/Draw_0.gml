@@ -8,7 +8,9 @@
 // ══════════════════════════════════════════════════════════
 draw_self();
 
-if (!global.debug_enemy_attacks) exit;
+// Mostrar debug si: global.debug_dev (modo dev) O global.debug_enemy_attacks (F3)
+var _show_debug = (variable_global_exists("debug_dev") && global.debug_dev) || global.debug_enemy_attacks;
+if (!_show_debug) exit;
 if (estate != ESTATE_AIM) exit;
 
 // ── Origen del disparo usando los offsets configurables ─────

@@ -24,8 +24,15 @@ detection_range = EARCHER_AGGRO_RANGE;   // 500 px
 walk_speed      = 1;                     // velocidad de patrulla (no usada — can_patrol=false)
 
 // ── Parámetros de disparo ─────────────────────────────────
-aim_charge_time      = EARCHER_AIM_TIME;        // 45 frames de carga
-shoot_cooldown_max   = EARCHER_SHOOT_COOLDOWN;  // 90 frames entre disparos
+// Los valores base se configuran con macros de scr_config.
+// Se aplican multiplicadores de dificultad si global.current_config existe.
+var _diff_mult = variable_global_exists("current_config") ? global.current_config : {
+	enemy_charge_time_multiplier: 1.0,
+	enemy_attack_cooldown_multiplier: 1.0
+};
+
+aim_charge_time      = ceil(EARCHER_AIM_TIME * _diff_mult.enemy_charge_time_multiplier);        // 45 frames de carga (normal)
+shoot_cooldown_max   = ceil(EARCHER_SHOOT_COOLDOWN * _diff_mult.enemy_attack_cooldown_multiplier);  // 90 frames entre disparos (normal)
 aim_timer            = 0;
 shoot_cooldown_timer = 0;
 

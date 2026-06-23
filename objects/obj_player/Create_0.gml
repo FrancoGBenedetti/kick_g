@@ -59,11 +59,18 @@ vel_x = 0;
 
 // ── Knockback y hitstun del jugador ──────────────────────
 // Sobreescriben los defaults del actor_parent (5 / -3 / 12 / 0.70).
-// Ajustar PLAYER_KNOCKBACK_X/Y, PLAYER_HITSTUN, PLAYER_KNOCKBACK_DECAY en scr_config.
-default_knockback_x = PLAYER_KNOCKBACK_X;     // 24 px/frame horizontal
-knockback_y_force   = PLAYER_KNOCKBACK_Y;     // -8 px/frame vertical (salto hacia atrás)
-default_hitstun     = PLAYER_HITSTUN;          // 20 frames
-knockback_decay     = PLAYER_KNOCKBACK_DECAY;  // 0.80 por frame
+// Valores configurables por dificultad vía global.current_config.
+// Si global.current_config no existe aún (durante editor), usar scr_config como fallback.
+var _cfg = variable_global_exists("current_config") ? global.current_config : {
+	player_knockback_x: PLAYER_KNOCKBACK_X,
+	player_knockback_y: PLAYER_KNOCKBACK_Y,
+	player_hitstun: PLAYER_HITSTUN,
+	player_knockback_decay: PLAYER_KNOCKBACK_DECAY
+};
+default_knockback_x = _cfg.player_knockback_x;     // 24 px/frame (normal)
+knockback_y_force   = _cfg.player_knockback_y;     // -8 px/frame (normal)
+default_hitstun     = _cfg.player_hitstun;          // 20 frames (normal)
+knockback_decay     = _cfg.player_knockback_decay;  // 0.80 por frame (normal)
 
 // ── Gravedad y caída (override del parent) ────────────────
 // Duplicados junto con jump_speed para mantener el arco exacto (mismos frames al apex).
@@ -378,6 +385,53 @@ sword_hitbox_id      = noone;  // referencia a obj_sword_hitbox activo
 combo_cooldown_frames = 20;    // frames de recuperación (~0.33s a 60fps)
 combo_cooldown_timer  = 0;
 
+// ══════════════════════════════════════════════════════════
+// PARÁMETROS DE ATAQUE CONFIGURABLES
+// ══════════════════════════════════════════════════════════
+// Las siguientes variables controlan la forma y posición del hitbox de espada
+// NORMAL (no afectan al downward slash que tiene sus propios parámetros).
+//
+// La máscara de colisión física del player (col_left/right/top/bottom)
+// permanece compacta (~56px ancho) alrededor del cuerpo.
+// El hitbox de ataque es INDEPENDIENTE y se extiende hacia adelante.
+//
+// ── Geometría: ─────────────────────────────────────────
+// Con facing=1 (mira derecha), el hitbox se construye como:
+//   left   = x + player_attack_start_offset
+//   right  = x + player_attack_start_offset + player_attack_reach
+//   center_y = y + player_attack_offset_y
+//   top    = center_y - player_attack_height / 2
+//   bottom = center_y + player_attack_height / 2
+//
+// Visualización conceptual (facing=1):
+//   [ cuerpo: col_left..col_right ]  [--- player_attack_reach ---]
+//   x                                 start_offset
+//
+player_attack_reach       = SWORD_HITBOX_W;    // 82: longitud del golpe en eje X
+player_attack_start_offset = SWORD_HITBOX_X;   // 68: distancia desde x hasta el inicio
+player_attack_height      = SWORD_HITBOX_H;    // 82: altura del rectángulo
+player_attack_offset_y    = SWORD_HITBOX_Y;    // -98: altura del golpe (en pixeles de sprite)
+
+// ── Cómo ajustar el alcance del golpe: ──────────────────
+// El hitbox se visualiza en AMARILLO cuando el player ataca (activa con F3/F8 o siempre para debug).
+//
+// Para acortar el golpe:       disminuye player_attack_reach
+// Para alargarlo:              aumenta player_attack_reach
+// Para moverlo más adelante:   aumenta player_attack_start_offset
+// Para acercarlo al cuerpo:    disminuye player_attack_start_offset
+// Para hacerlo más alto:       aumenta player_attack_height
+// Para hacerlo más bajo:       disminuye player_attack_height
+// Para subirlo en el sprite:   aumenta player_attack_offset_y (menos negativo)
+// Para bajarlo en el sprite:   disminuye player_attack_offset_y (más negativo)
+//
+// Ejemplo: lanza más larga que espada:
+//   player_attack_reach       = 120;  (en lugar de 82)
+//   player_attack_start_offset = 80;  (en lugar de 68)
+//
+// DEBUG VISUAL: El hitbox aparece en AMARILLO igual que los de enemigos.
+// Activar con: F3 (global.debug_enemy_attacks) o F8 (global.debug_hitboxes)
+// O mantener visible siempre durante desarrollo.
+
 // HOOK FUTURO — parry:
 //   parry_window_1/2/3: frames desde el inicio del golpe en que un parry es posible.
 //   Cuando on_damage se dispara durante esa ventana Y combo_step > 0:
@@ -644,25 +698,30 @@ player_debug_visible = false;   // F8 para activar en runtime
 player_state = PSTATE.FALL;
 
 // ══════════════════════════════════════════════════════════
-// SALUD — override de los valores del parent
+// SALUD Y DAÑO — override de los valores del parent
 // ══════════════════════════════════════════════════════════
 // Estas líneas corren DESPUÉS de event_inherited(), por lo que
 // sobreescriben correctamente los valores base del actor.
+//
+// IMPORTANTES: max_hp, default_invuln y default_hitstun son configurables
+// por dificultad vía global.current_config. Los valores aquí son fallback.
 
-max_hp = 6;       // el jugador aguanta más que un actor genérico
+var _cfg_hp = variable_global_exists("current_config") ? global.current_config : {
+	player_max_hp: 2,
+	player_default_invuln: 90,
+	player_hitstun: 20
+};
+
+max_hp = _cfg_hp.player_max_hp;        // configurables por dificultad
 hp     = max_hp;
 
 // Override de i-frames: el jugador tiene más tiempo de invulnerabilidad.
 // Nota: la variable canónica es default_invuln (renombrada desde invulnerability_max).
-default_invuln = 90;   // ~1.5s — más i-frames que un enemigo genérico (base = 60)
+default_invuln = _cfg_hp.player_default_invuln;   // ~1.5s en normal, menos en fácil
 
-// ── Valores de daño del jugador (override del parent) ─────
-// El parent tiene valores genéricos (knockback=5, vsp=-3, hitstun=12).
-// El jugador necesita retroalimentación más fuerte y alejamiento claro.
-default_knockback_x = 18;   // px/frame — retrocede ~200-250px en suelo
-knockback_y_force   = -6;   // impulso vertical al recibir daño (arriba)
-default_hitstun     = 18;   // frames (~0.3s a 60fps)
-knockback_decay     = 0.82; // decay lento → mayor distancia recorrida (parent: 0.70)
+// ── Valores de daño del jugador (knockback y hitstun, heredados de arriba) ─
+// También heredan los valores ya asignados hace poco del config de dificultad.
+// No se duplican aquí para mantener coherencia.
 
 // ── Parpadeo de invulnerabilidad ──────────────────────────
 // Ajustar: menor = parpadeo más rápido; 4 es el estándar Mega Man / Hollow Knight.
@@ -673,8 +732,13 @@ blink_interval = 4;
 // Bloquea movimiento, ataque, dash, etc. EXCEPTO parry.
 // Un parry perfecto durante este estado lo cancela inmediatamente.
 // Esto hace que ser golpeado sea más peligroso en combates multi-enemigos.
+// IMPORTANTE: la duración (damage_recovery_lock_duration) es configurable por dificultad.
 damage_recovery_lock = false;
 damage_recovery_lock_timer = 0;
+var _cfg_recovery = variable_global_exists("current_config") ? global.current_config : {
+	damage_recovery_lock_duration: 90
+};
+damage_recovery_lock_duration = _cfg_recovery.damage_recovery_lock_duration;  // configurable por dificultad
 
 // ── Funciones helper para verificar si el player puede actuar ──
 player_can_move = function() {
@@ -847,12 +911,21 @@ ability_counterattack  = true;   // contraataque post-parry — presionar ataque
 is_blocking          = false;   // espejo de (player_state == PSTATE.BLOCK); leído por take_damage
 is_parrying          = false;   // true durante parry_window_timer > 0 en BLOCK
 parry_window_timer   = 0;       // cuenta regresiva de la ventana perfecta (frames reales)
-parry_window_max     = PARRY_WINDOW_FRAMES;   // valor de configuración — leer para debug/UI
+// Valores configurables por dificultad vía global.current_config
+var _cfg_parry = variable_global_exists("current_config") ? global.current_config : {
+	parry_window_frames: PARRY_WINDOW_FRAMES,
+	parry_slow_duration: PARRY_SLOW_DURATION,
+	parry_cooldown_max: PARRY_COOLDOWN_MAX,
+	parry_counter_window: PARRY_COUNTER_WINDOW
+};
+parry_window_max     = _cfg_parry.parry_window_frames;   // configurables por dificultad
 parry_slow_timer     = 0;       // frames restantes de slow-mo post-parry (frames reales)
+parry_slow_duration_max = _cfg_parry.parry_slow_duration;  // duración del slow-mo por dificultad
 parry_cooldown_timer = 0;       // cooldown tras salir de block (frames reales)
+parry_cooldown_max   = _cfg_parry.parry_cooldown_max;   // cooldown por dificultad
 can_counterattack    = false;   // activado tras parry perfecto — futuro contraataque
 counterattack_timer  = 0;       // ventana de contraataque disponible (frames gated)
-counter_window_max   = PARRY_COUNTER_WINDOW;  // referencia de configuración
+counter_window_max   = _cfg_parry.parry_counter_window;  // configurables por dificultad
 
 // ── Variables alias / estado observable ─────────────────
 // parry_active  : equivale a is_parrying; nombre más semántico para sistemas externos.
@@ -1030,9 +1103,11 @@ take_damage = function(_amount, _source) {
     // El parent activó is_invulnerable=true y timers en base_take_damage.
     // Ahora activamos el bloqueo que impide movimiento/ataque/dash
     // excepto parry, que es la única defensa activa durante i-frames.
+    // IMPORTANTE: la duración del lock es configurable por dificultad,
+    // pero también respeta invuln_timer del parent (usa el menor).
     if (is_invulnerable) {
         damage_recovery_lock = true;
-        damage_recovery_lock_timer = invuln_timer;
-        show_debug_message("[PLAYER] Daño recibido: damage_recovery_lock activado por " + string(damage_recovery_lock_timer) + " frames");
+        damage_recovery_lock_timer = min(invuln_timer, damage_recovery_lock_duration);
+        show_debug_message("[PLAYER] Daño recibido: damage_recovery_lock activado por " + string(damage_recovery_lock_timer) + " frames (dificultad: " + get_difficulty_string() + ")");
     }
 };
