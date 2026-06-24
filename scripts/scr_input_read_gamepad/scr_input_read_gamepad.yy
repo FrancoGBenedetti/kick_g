@@ -1,0 +1,13 @@
+{
+  "$GMScript":"v1",
+  "%Name":"scr_input_read_gamepad",
+  "isCompatibility":false,
+  "isDnD":false,
+  "name":"scr_input_read_gamepad",
+  "parent":{
+    "name":"Managers",
+    "path":"folders/Scripts/Managers.yy"
+  },
+  "resourceType":"GMScript",
+  "resourceVersion":"2.0"
+}

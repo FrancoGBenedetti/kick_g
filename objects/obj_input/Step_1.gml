@@ -4,37 +4,13 @@
 var _kb  = global.keybinds;
 var _inp = global.inp;
 
-// ── TECLADO ───────────────────────────────────────────────
-_inp.move_axis      = keyboard_check(_kb.kb_move_right) - keyboard_check(_kb.kb_move_left);
-_inp.jump_pressed   = keyboard_check_pressed(_kb.kb_jump);
-_inp.jump_held      = keyboard_check(_kb.kb_jump);
-_inp.dash_pressed   = keyboard_check_pressed(_kb.kb_dash);
-// ── Espada ────────────────────────────────────────────────
-_inp.attack_pressed  = keyboard_check_pressed(_kb.kb_attack);
-_inp.attack_held     = keyboard_check(_kb.kb_attack);          // held: pogo persistente
+var _keyboard = scr_input_read_keyboard(_kb);
+var _gamepad  = scr_input_read_gamepad(_kb, gp_prev_move_axis, gp_prev_aim_axis);
 
-// ── Arco ──────────────────────────────────────────────────
-_inp.ranged_pressed  = keyboard_check_pressed(_kb.kb_ranged);
-_inp.ranged_held     = keyboard_check(_kb.kb_ranged);
-_inp.ranged_released = keyboard_check_released(_kb.kb_ranged);
+scr_input_apply(_inp, _keyboard, _gamepad);
 
-// ── Apuntado vertical del arco ────────────────────────────
-_inp.aim_up_held   = keyboard_check(_kb.kb_aim_up);
-_inp.aim_down_held = keyboard_check(_kb.kb_aim_down);
-
-// ── Inputs direccionales one-shot (combo buffer) ──────────
-// pressed = true solo en el primer frame de la pulsación.
-// Independientes de move_axis (que es held continuo).
-_inp.left_pressed  = keyboard_check_pressed(_kb.kb_move_left);
-_inp.right_pressed = keyboard_check_pressed(_kb.kb_move_right);
-_inp.up_pressed    = keyboard_check_pressed(_kb.kb_aim_up);
-_inp.down_pressed  = keyboard_check_pressed(_kb.kb_aim_down);
-
-// ── Defensa ───────────────────────────────────────────────────
-_inp.block_pressed   = keyboard_check_pressed(_kb.kb_block);
-_inp.block_held      = keyboard_check(_kb.kb_block);
-
-_inp.pause_pressed   = keyboard_check_pressed(_kb.kb_pause);
+gp_prev_move_axis = _gamepad.next_move_axis;
+gp_prev_aim_axis  = _gamepad.next_aim_axis;
 
 // ── DEBUG TOGGLES ─────────────────────────────────────────
 // F3: hitboxes y líneas de ataque de enemigos.
@@ -98,15 +74,3 @@ if (keyboard_check_pressed(vk_f11)) {
                                    || !global.debug_dash_afterimage;
     show_debug_message("Dash afterimage debug: " + string(global.debug_dash_afterimage));
 }
-
-// ── GAMEPAD (futuro) ──────────────────────────────────────
-// Para agregar gamepad: OR cada campo con los valores del gamepad.
-// Ejemplo:
-//   if (gamepad_is_connected(_kb.gp_slot)) {
-//       var _raw = gamepad_axis_value(_kb.gp_slot, _kb.gp_move_axis);
-//       var _gp_axis = abs(_raw) > _kb.gp_deadzone ? sign(_raw) : 0;
-//       _inp.move_axis    = clamp(_inp.move_axis + _gp_axis, -1, 1);
-//       _inp.jump_pressed = _inp.jump_pressed || gamepad_button_check_pressed(_kb.gp_slot, _kb.gp_jump);
-//       _inp.jump_held    = _inp.jump_held    || gamepad_button_check(_kb.gp_slot, _kb.gp_jump);
-//       _inp.dash_pressed = _inp.dash_pressed || gamepad_button_check_pressed(_kb.gp_slot, _kb.gp_dash);
-//   }

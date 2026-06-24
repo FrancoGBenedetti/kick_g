@@ -1,0 +1,13 @@
+{
+  "$GMScript":"v1",
+  "%Name":"scr_input_apply",
+  "isCompatibility":false,
+  "isDnD":false,
+  "name":"scr_input_apply",
+  "parent":{
+    "name":"Managers",
+    "path":"folders/Scripts/Managers.yy"
+  },
+  "resourceType":"GMScript",
+  "resourceVersion":"2.0"
+}

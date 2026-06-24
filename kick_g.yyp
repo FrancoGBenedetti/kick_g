@@ -2,7 +2,7 @@
   "$GMProject":"v1",
   "%Name":"kick_g",
   "AudioGroups":[
-    {"$GMAudioGroup":"","%Name":"audiogroup_default","name":"audiogroup_default","resourceType":"GMAudioGroup","resourceVersion":"2.0","targets":-1,},
+    {"$GMAudioGroup":"v1","%Name":"audiogroup_default","exportDir":"","name":"audiogroup_default","resourceType":"GMAudioGroup","resourceVersion":"2.0","targets":-1,},
   ],
   "configs":{
     "children":[],
@@ -106,6 +106,9 @@
     {"id":{"name":"scr_draw_healthbar","path":"scripts/scr_draw_healthbar/scr_draw_healthbar.yy",},},
     {"id":{"name":"scr_enemy_get_attack_rect","path":"scripts/scr_enemy_get_attack_rect/scr_enemy_get_attack_rect.yy",},},
     {"id":{"name":"scr_hide_collision_layer","path":"scripts/scr_hide_collision_layer/scr_hide_collision_layer.yy",},},
+    {"id":{"name":"scr_input_apply","path":"scripts/scr_input_apply/scr_input_apply.yy",},},
+    {"id":{"name":"scr_input_read_gamepad","path":"scripts/scr_input_read_gamepad/scr_input_read_gamepad.yy",},},
+    {"id":{"name":"scr_input_read_keyboard","path":"scripts/scr_input_read_keyboard/scr_input_read_keyboard.yy",},},
     {"id":{"name":"scr_player_fsm","path":"scripts/scr_player_fsm/scr_player_fsm.yy",},},
     {"id":{"name":"scr_time_manager","path":"scripts/scr_time_manager/scr_time_manager.yy",},},
     {"id":{"name":"tile_solid_at","path":"scripts/tile_solid_at/tile_solid_at.yy",},},

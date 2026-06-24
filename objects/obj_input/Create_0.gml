@@ -18,10 +18,16 @@ global.keybinds = {
     // Gamepad (slot 0 — primer control conectado)
     gp_slot:       0,
     gp_move_axis:  gp_axislh,   // stick izquierdo horizontal
+    gp_move_left:  gp_padl,     // D-pad izquierda
+    gp_move_right: gp_padr,     // D-pad derecha
+    gp_aim_axis:   gp_axisrv,   // stick derecho vertical
+    gp_aim_up:     gp_padu,     // D-pad arriba
+    gp_aim_down:   gp_padd,     // D-pad abajo
     gp_jump:       gp_face1,    // A / Cruz
     gp_dash:       gp_face3,    // X / Cuadrado
     gp_attack:     gp_face2,    // B / Círculo  — espada
     gp_ranged:     gp_shoulderr, // RB / R1 — arco
+    gp_block:      gp_shoulderl, // LB / L1 — defensa / parry
     gp_pause:      gp_start,
 
     // Deadzone para ejes analógicos
@@ -51,7 +57,7 @@ global.inp = {
 
     // ── Apuntado vertical del arco ────────────────────────
     // Activo solo mientras se mantiene cargado el arco.
-    // Mapeado a ↑/↓ (teclado) o stick derecho vertical (gamepad futuro).
+    // Mapeado a ↑/↓ (teclado), D-pad o stick derecho vertical.
     aim_up_held:      false,
     aim_down_held:    false,
 
@@ -70,3 +76,7 @@ global.inp = {
 
     pause_pressed:    false,
 };
+
+// Estado previo de ejes digitales/analógicos para detectar presses one-shot.
+gp_prev_move_axis = 0;
+gp_prev_aim_axis  = 0;
