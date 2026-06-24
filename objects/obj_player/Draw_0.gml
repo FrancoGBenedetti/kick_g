@@ -948,4 +948,14 @@ if (variable_global_exists("debug_dev") && global.debug_dev) {
         draw_set_color(make_color_rgb(200, 200, 0));
         draw_text(_dbg_x, _dbg_y + _beat_y_base + 36, _input_str);
     }
+
+    // ── SLOW MOTION DEBUG ──────────────────────────────────
+    if (global.slowmo_active) {
+        draw_set_color(c_cyan);
+        var _slow_y = _dbg_y + (beat_em_up_active ? 168 : 96);
+        draw_text(_dbg_x, _slow_y, "SLOWMO: active=" + string(global.slowmo_active));
+        draw_text(_dbg_x, _slow_y + 12, "  timer=" + string(global.slowmo_timer) + "f");
+        draw_text(_dbg_x, _slow_y + 24, "  scale=" + string_format(global.slowmo_scale_temporary, 0, 2));
+        draw_text(_dbg_x, _slow_y + 36, "  img_spd=" + string_format(image_speed, 0, 3) + " (base=" + string_format(base_image_speed, 0, 3) + ")");
+    }
 }
