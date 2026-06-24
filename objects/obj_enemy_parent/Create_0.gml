@@ -308,6 +308,10 @@ on_damage = function(_amount, _source) {
         + "  flash=" + string(enemy_hit_flash));
 };
 
+// ── BASE IMAGE SPEED — para slow motion centralizado ──────
+// Se multiplica por get_time_scale() cada frame para efecto de cámara lenta.
+base_image_speed = 0.2;  // velocidad base de animación (ajustar por tipo enemigo)
+
 die = function() {
     show_debug_message("[DBG] ENEMY die(): " + object_get_name(object_index));
     instance_destroy();

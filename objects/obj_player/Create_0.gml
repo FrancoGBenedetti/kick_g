@@ -33,15 +33,18 @@ debug_draw_anchors = false;
 //   "air"       → placeholder hasta tener sprites de salto/caída
 player_anim_state = "idle";
 
+// ── BASE IMAGE SPEED — para slow motion centralizado ──────
+// Se multiplica por get_time_scale() cada frame para efecto de cámara lenta.
+base_image_speed = 0.25;  // velocidad base de animación
+
 // spr_set: asigna sprite sin reiniciar image_index si ya es el mismo.
 // Seguro llamarlo cada frame — no provoca parpadeo ni restart de animación.
 spr_set = function(_spr) {
     if (sprite_index != _spr) {
         sprite_index = _spr;
         image_index  = 0;
-        // Usar time_scale para que el primer frame del sprite
-        // ya aparezca a la velocidad correcta (End Step lo confirmará).
-        image_speed  = global.time_scale;
+        // Usar base_image_speed * get_time_scale() para que respete slow motion
+        image_speed  = base_image_speed * get_time_scale();
     }
 };
 
@@ -191,6 +194,27 @@ beat_em_up_cooldown_timer = 0;               // cooldown global
 
 // ── Enemigos durante Beat 'em Up ─────────────────────────
 beat_em_up_enemy_iframes  = 0;               // iframes cortos para combos rápidos
+
+// ══════════════════════════════════════════════════════════
+// ROLL DODGE — Evasión defensiva estilo Dark Souls
+// ══════════════════════════════════════════════════════════
+// Mecánica defensiva principal. Solo en suelo. Invulnerable durante roll.
+// Reemplaza Jump Back (desactivado). En aire, Dash sigue sin invulnerabilidad.
+roll_active           = false;             // true mientras está rodando
+roll_timer            = 0;                 // cuenta regresiva del roll
+roll_duration         = 18;                // frames (0.3s a 60 FPS)
+roll_distance         = 400;               // píxeles que recorre
+roll_speed            = roll_distance / roll_duration;  // px/frame calculado
+roll_dir              = 1;                 // dirección del roll (facing al inicio)
+roll_cooldown_timer   = 0;                 // espera entre rolls
+roll_cooldown_max     = 20;                // frames de cooldown mínimo
+roll_invulnerable     = true;              // true = invulnerable durante roll
+roll_replaces_ground_dash = false;         // false = Dash y Roll son acciones separadas
+
+// Futuras combinaciones (no implementadas todavía)
+roll_can_chain_back_attack   = false;      // roll + ataque atrás
+roll_can_chain_attack        = false;      // roll + ataque adelante
+roll_can_change_direction    = false;      // cambiar dirección durante roll
 
 // ══════════════════════════════════════════════════════════
 // SUPER ENERGY — medidor de recurso para futuros super ataques
@@ -1096,7 +1120,8 @@ take_damage = function(_amount, _source) {
         parry_success_timer  = 3;          // parry_success visible por ~3 frames reales
         parry_success        = true;
         parry_popup_timer    = parry_popup_timer_max;   // activa el ! visual sobre la cabeza
-        parry_slow_timer     = PARRY_SLOW_DURATION;
+        trigger_parry_feedback();          // activa slow-mo centralizado + efectos
+        parry_slow_timer     = PARRY_SLOW_DURATION;    // legacy: mantener para compatibilidad
         parry_window_timer   = 0;
         is_parrying          = false;
         parry_active         = false;
@@ -1236,6 +1261,71 @@ take_damage = function(_amount, _source) {
         damage_recovery_lock = true;
         damage_recovery_lock_timer = min(invuln_timer, damage_recovery_lock_duration);
         show_debug_message("[PLAYER] Daño recibido: damage_recovery_lock activado por " + string(damage_recovery_lock_timer) + " frames (dificultad: " + get_difficulty_string() + ")");
+    }
+};
+
+/// @function player_can_roll()
+/// @description Verifica si el jugador puede ejecutar Roll
+function player_can_roll() {
+    if (is_dead) return false;
+    if (!isGrounded) return false;  // Solo en suelo
+    if (hitstun_timer > 0) return false;
+    if (damage_recovery_lock) return false;
+    if (player_state == PSTATE.COUNTER_ATTACK) return false;
+    if (player_state == PSTATE.BLOCK) return false;
+    if (beat_em_up_active) return false;  // No durante Beat 'em Up
+    if (player_state == PSTATE.WALL) return false;
+    if (roll_cooldown_timer > 0) return false;
+    return true;
+};
+
+/// @function start_roll()
+/// @description Inicia el Roll Dodge
+function start_roll() {
+    if (!player_can_roll()) return false;
+
+    roll_active = true;
+    roll_timer = roll_duration;
+    roll_dir = facing;  // Roll hacia donde mira
+    roll_cooldown_timer = roll_cooldown_max;
+
+    // Limpiar estados incompatibles
+    attack_buffer = false;
+    bow_release_pending = false;
+    bow_is_charging = false;
+
+    show_debug_message("[ROLL] Iniciado - duración: " + string(roll_duration) + "f");
+    return true;
+};
+
+/// @function end_roll()
+/// @description Termina el Roll Dodge
+function end_roll() {
+    roll_active = false;
+    roll_timer = 0;
+    show_debug_message("[ROLL] Terminado");
+};
+
+/// @function update_roll()
+/// @description Actualiza la lógica del Roll (movimiento, invulnerabilidad)
+/// @details Llamar cada frame en la sección gated del Step
+function update_roll() {
+    if (!roll_active) return;
+
+    // Decrementar timer
+    roll_timer--;
+    if (roll_timer <= 0) {
+        end_roll();
+        return;
+    }
+
+    // Aplicar velocidad horizontal
+    vel_x = roll_dir * roll_speed;
+
+    // Mantener invulnerabilidad durante el roll
+    if (roll_invulnerable) {
+        is_invulnerable = true;
+        invuln_timer = 1;  // Mantener activo
     }
 };
 

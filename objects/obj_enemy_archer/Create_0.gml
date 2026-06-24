@@ -8,6 +8,10 @@
 // ══════════════════════════════════════════════════════════
 event_inherited();
 
+// ── BASE IMAGE SPEED — ajustado para este enemigo ──────────
+// Sobrescribir el valor del parent (0.2) si es necesario
+base_image_speed = 0.2;
+
 // ── Salud ──────────────────────────────────────────────────
 // Aplicar multiplicador de testing (global.enemy_test_hp_multiplier)
 // Default: max_hp = 3, con multiplicador x2 = 6
@@ -58,6 +62,12 @@ projectile_spawn_offset_y = -24;   // altura de pecho aproximada
 // ── FSM: estados del arquero ──────────────────────────────
 ESTATE_AIM      = 2;   // apuntando y cargando
 ESTATE_COOLDOWN = 3;   // cooldown post-disparo
+
+// ── Bloqueo de facing durante ataque (apuntado) ──────────────
+// Cuando el arquero decide atacar (entra en AIM), guarda la dirección.
+// Esto permite que el player esquive detrás del arquero sin que rote.
+attack_facing_locked   = false;  // true = el enemigo NO puede cambiar facing
+attack_facing          = 1;      // dirección guardada cuando inicia ataque
 
 // ── Override de on_damage ────────────────────────────────
 on_damage = function(_amount, _source) {

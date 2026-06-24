@@ -179,8 +179,11 @@ switch (estate) {
     break;
 
     case ESTATE_ATTACK_WINDUP:
-        // Forzar facing hacia el jugador en todo momento durante el windup
-        if (_chase_dir != 0) facing = _chase_dir;
+        // Forzar facing hacia el jugador SOLO si no hay lock de ataque previo
+        // Una vez que decide atacar, mantiene esa dirección todo el ataque
+        if (!attack_facing_locked && _chase_dir != 0) {
+            facing = _chase_dir;
+        }
 
         // Fase de avance: si el jugador aún está fuera del hitbox,
         // seguir caminando para cerrar la distancia.
@@ -196,14 +199,20 @@ switch (estate) {
 
         // ── Transición a ACTIVE: solo si timer llega a 0 y player está en rango ──
         if (attack_windup_timer <= 0 && _player_in_attack_rect) {
-            // ── Transición a ataque activo: spawnar hitbox ────
+            // ── Transición a ataque activo: guardar facing y bloquear giros ────
+            attack_facing_locked = true;  // El enemigo NO puede girarse más
+            attack_facing        = facing; // Guardar dirección de ataque
+
+            // ── Spawnar hitbox ────
             estate              = ESTATE_ATTACK_ACTIVE;
             attack_active_timer = attack_active_time;
-            show_debug_message("[SWORDSMAN] WINDUP → ACTIVE: spawning hitbox");
+            show_debug_message("[SWORDSMAN] WINDUP → ACTIVE: spawning hitbox, facing locked at " + string(attack_facing));
 
             var _enemy_id = id;
+            // Usar attack_facing en lugar de facing para que el hitbox salga
+            // en la dirección decidida al iniciar el ataque, no la actual
             sword_hitbox_id = instance_create_layer(
-                x + facing * esword_hitbox_offset_x,
+                x + attack_facing * esword_hitbox_offset_x,
                 y + esword_hitbox_offset_y,
                 "Instances_2",
                 obj_enemy_sword_hitbox
@@ -217,6 +226,7 @@ switch (estate) {
                 hitbox_offset_y = _enemy_id.esword_hitbox_offset_y;
                 hitbox_w        = _enemy_id.esword_hitbox_w;
                 hitbox_h        = _enemy_id.esword_hitbox_h;
+                attack_facing   = _enemy_id.attack_facing;  // dirección del ataque (bloqueada)
             }
         } else if (attack_windup_timer <= 0) {
             // ── Timer llegó a 0 pero player se alejó demasiado ────
@@ -243,6 +253,15 @@ switch (estate) {
 
     case ESTATE_COOLDOWN:
         move_x = 0;
+
+        // ── Timer de cooldown, luego volver a CHASE ───────────────
+        attack_cooldown_timer--;
+        if (attack_cooldown_timer <= 0) {
+            // ── Liberar bloqueo de facing al terminar cooldown ────
+            attack_facing_locked = false;
+            estate = ESTATE_CHASE;
+            show_debug_message("[SWORDSMAN] COOLDOWN → CHASE: facing unlocked");
+        }
     break;
 }
 

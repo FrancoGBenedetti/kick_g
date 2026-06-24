@@ -42,3 +42,48 @@ function time_set(_scale) {
 function time_is_slow() {
     return (global.time_scale < 1.0);
 }
+
+// ══════════════════════════════════════════════════════════
+// SLOW MOTION CENTRALIZADO — Sistema nuevo con timer
+// ══════════════════════════════════════════════════════════
+// Permite activar slow motion por duración específica.
+// Todos los efectos (parry, futuros efectos especiales) usan esta función.
+
+/// @function trigger_slow_motion(_scale, _duration)
+/// @description Activa slow motion por duración específica
+/// @param {real} _scale    Escala de velocidad (0.1 = 10%, 0.25 = 25%)
+/// @param {real} _duration Duración en frames reales
+function trigger_slow_motion(_scale, _duration) {
+    global.slowmo_active = true;
+    global.slowmo_scale_temporary = _scale;
+    global.slowmo_timer = _duration;
+    global.time_scale = _scale;  // Aplicar inmediatamente
+}
+
+/// @function get_time_scale()
+/// @description Retorna la escala de tiempo actual (afectada por slow motion)
+/// @return {real} Escala de tiempo (0.0-1.0 normal, <1.0 slow motion)
+function get_time_scale() {
+    if (global.slowmo_active) {
+        return global.slowmo_scale_temporary;
+    }
+    return global.time_scale;  // Retornar time_scale normal/modificado
+}
+
+/// @function trigger_parry_feedback()
+/// @description Dispara feedback centralizado de parry exitoso
+/// Llamar desde cualquier punto de parry exitoso (aéreo, melee, proyectil).
+function trigger_parry_feedback() {
+    // Activar slow motion de parry
+    trigger_slow_motion(global.parry_slowmo_scale, global.parry_slowmo_duration);
+
+    // Aquí agregar en el futuro:
+    // - Screen shake
+    // - Particle effects
+    // - Sound cues
+    // - Haptic feedback
+
+    show_debug_message("[PARRY] Feedback centralizado activado - slowmo: " +
+                       string(global.parry_slowmo_scale) + " por " +
+                       string(global.parry_slowmo_duration) + "f");
+}

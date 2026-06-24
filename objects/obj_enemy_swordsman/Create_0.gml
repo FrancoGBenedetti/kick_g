@@ -10,6 +10,10 @@
 // ══════════════════════════════════════════════════════════
 event_inherited();   // obj_enemy_parent → obj_actor_parent
 
+// ── BASE IMAGE SPEED — ajustado para este enemigo ──────────
+// Sobrescribir el valor del parent (0.2) si es necesario
+base_image_speed = 0.2;
+
 // ── Salud ──────────────────────────────────────────────────
 // Aplicar multiplicador de testing (global.enemy_test_hp_multiplier)
 // Default: max_hp = 4, con multiplicador x2 = 8
@@ -84,6 +88,13 @@ esword_hitbox_offset_x = ESWORDSMAN_HITBOX_OFFSET_X;  // centro del hitbox = tri
 esword_hitbox_offset_y = ESWORDSMAN_HITBOX_OFFSET_Y;  // altura media del enemigo
 esword_hitbox_w        = ESWORDSMAN_HITBOX_W;         // ancho = trigger_dist (cubre todo el rango)
 esword_hitbox_h        = ESWORDSMAN_HITBOX_H;         // alto = torso + piernas jugador
+
+// ── Bloqueo de facing durante ataque ──────────────────────
+// Cuando el enemigo inicia un ataque, guarda la dirección y no se gira durante
+// todo el ataque (windup + active + cooldown).
+// Esto permite que el player esquive detrás del enemigo sin que el ataque lo siga.
+attack_facing_locked   = false;  // true = el enemigo NO puede cambiar facing
+attack_facing          = 1;      // dirección guardada cuando inicia ataque
 
 // ── Override de on_damage ─────────────────────────────────
 // Captura el método del parent (blink, knockback, hitstun, i-frames)

@@ -47,8 +47,8 @@ var _bow_busy   = bow_is_charging;   // cubre carga + pending-release
 var _block_busy = (player_state == PSTATE.BLOCK);
 
 var _dir       = global.inp.move_axis;
-// Bloquear input horizontal si jump_back está en fase de control lock
-if (jump_back_active && jump_back_control_lock_timer > 0) {
+// Bloquear input horizontal durante Roll
+if (roll_active) {
     _dir = 0;
 }
 var _want_jump = global.inp.jump_pressed;
@@ -558,51 +558,41 @@ if (player_state == PSTATE.WALL
     player_set_state(PSTATE.JUMP);
 }
 
-// ── JUMP BACK: Evasión hacia atrás con ventana de input ─────
-// Nueva lógica:
-//   1. Al presionar dash: guardar facing actual
-//   2. Abrir ventana de input (6 frames)
-//   3. Si se presiona dirección contraria DURANTE esa ventana: jump back
-//   4. Si no: dash normal
-// El facing se BLOQUEA durante jump back para evitar que gire.
+// ── JUMP BACK: DESACTIVADO — Reemplazado por Roll Dodge ─────
+// NOTA: Jump Back fue desactivado. Toda la lógica queda comentada abajo.
+// Si necesitas reactivar, descomenta, pero Roll Dodge es la opción defensiva nueva.
 //
+/*
 var _jump_back_triggered = false;
 
 // ── Paso 1: Presionar dash abre ventana de input ─────────────
 if (ability_dash && _want_dash && dashCooldownTimer == 0 && player_state != PSTATE.DASH) {
-    // Guardar facing actual para usar en jump back
     jump_back_stored_facing = facing;
-    jump_back_input_timer = jump_back_input_window;  // 6 frames para detectar dirección contraria
-
+    jump_back_input_timer = jump_back_input_window;
     show_debug_message("[JUMP_BACK] Ventana abierta - facing guardado: " + string(jump_back_stored_facing));
 }
 
 // ── Paso 2: Durante ventana de input, detectar dirección contraria ──
 if (jump_back_input_timer > 0 && player_can_jump_back()) {
     jump_back_input_timer--;
-
-    // Leer input directo (no usar _dir que ya fue procesado)
     var _current_input_dir = keyboard_check(vk_right) - keyboard_check(vk_left);
-
-    // Si presiona dirección contraria al facing guardado
     if (_current_input_dir != 0 && _current_input_dir == -jump_back_stored_facing) {
         _jump_back_triggered = start_jump_back(jump_back_stored_facing);
         if (_jump_back_triggered) {
             dashCooldownTimer = dash_cooldown_max;
             if (!isGrounded && jump_back_uses_dash_charge) can_air_dash = false;
-            jump_back_input_timer = 0;  // Cerrar ventana
+            jump_back_input_timer = 0;
         }
     }
 } else {
-    jump_back_input_timer = 0;  // Cerrar ventana si no se cumple
+    jump_back_input_timer = 0;
 }
+*/
 
 // ── DASH: activación ──────────────────────────────────────
 // Bloqueado durante ataque y durante arco activo.
-// Nota: el arco bloquea el dash para evitar cancelar la carga accidentalmente.
-// Si en el futuro se quiere permitir "dash cancela arco", eliminar !_bow_busy aquí.
-// IMPORTANTE: Si jump_back se ejecutó, NO ejecutar dash normal.
-if (!_jump_back_triggered && ability_dash && _want_dash && dashCooldownTimer == 0
+// Funciona en suelo y aire según condiciones de ability_air_dash.
+if (ability_dash && _want_dash && dashCooldownTimer == 0
     && player_state != PSTATE.DASH && !_in_attack && !_bow_busy && !_block_busy && player_can_dash()) {
     // Air dash requiere ability_air_dash además de ability_dash.
     var _can_dash = isGrounded || (can_air_dash && ability_air_dash);
@@ -626,23 +616,34 @@ if (!_jump_back_triggered && ability_dash && _want_dash && dashCooldownTimer == 
     }
 }
 
-// ── JUMP BACK: Actualizar timers y aplicar física ──────────
+// ── ROLL DODGE: activación con tecla A ─────────────────────
+// Acción completamente separada del Dash.
+// Se activa presionando tecla A en suelo, mientras puede_rodar.
+if (keyboard_check_pressed(ord("A")) && player_can_roll()) {
+    start_roll();
+}
+
+// ── ROLL DODGE: actualización (cada frame gated) ──────────
+update_roll();
+
+// ── Roll cooldown decrement (gated) ───────────────────────
+if (roll_cooldown_timer > 0) {
+    roll_cooldown_timer--;
+}
+
+// ── JUMP BACK: DESACTIVADO (comentado arriba)
+/*
 if (jump_back_active) {
     if (jump_back_timer > 0) {
-        // Mantener movimiento inicial durante jump_back_timer
-        // vel_x y vel_y ya fueron asignados en start_jump_back()
-        // Aquí solo se decremente el timer
         jump_back_timer--;
     } else {
-        // Jump back terminó — devolver control
         jump_back_active = false;
     }
-
-    // Bloquear input horizontal durante control_lock
     if (jump_back_control_lock_timer > 0) {
         jump_back_control_lock_timer--;
     }
 }
+*/
 
 // ── PRE-FÍSICA: comportamiento especial por estado ────────
 switch (player_state) {
@@ -856,6 +857,10 @@ if (is_sliding) {
 
 // ── FÍSICA (parent: gravedad + colisiones de tile) ────────
 event_inherited();
+
+// ── SLOW MOTION: actualizar image_speed con multiplicador global ─
+// Permite que las animaciones del sprite respondan a parry slow-mo
+image_speed = base_image_speed * get_time_scale();
 
 // ══════════════════════════════════════════════════════════
 // POST-FÍSICA — combate, saltos, timers, transiciones
@@ -1704,15 +1709,11 @@ if (player_state == PSTATE.DASH
     }
 }
 
-// ── JUMP BACK: Mantener facing bloqueado ───────────────────
-// Si jump_back está activo, asegurar que facing se mantiene en el valor guardado.
-// Esto impide que el input horizontal gire al personaje durante la evasión.
-if (jump_back_active && jump_back_facing_locked) {
-    facing = jump_back_stored_facing;
-    image_xscale = abs(image_xscale) * jump_back_stored_facing;
-}
-
-// ── Limpiar facing lock cuando jump_back termina ────────────
-if (!jump_back_active && jump_back_facing_locked) {
-    jump_back_facing_locked = false;  // Permitir que facing vuelva a cambiar
-}
+// ── JUMP BACK: Desactivado — facing lock comentado ─────────
+// if (jump_back_active && jump_back_facing_locked) {
+//     facing = jump_back_stored_facing;
+//     image_xscale = abs(image_xscale) * jump_back_stored_facing;
+// }
+// if (!jump_back_active && jump_back_facing_locked) {
+//     jump_back_facing_locked = false;
+// }

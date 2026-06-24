@@ -15,9 +15,17 @@
 // ══════════════════════════════════════════════════════════
 
 // ── 1. SPRITE ─────────────────────────────────────────────
-// event_inherited() delega al parent: draw_self() + health bar
-// (health bar suprimida para el jugador por show_world_healthbar=false)
-event_inherited();
+// Roll Dodge: dibujar bola negra en lugar del sprite normal
+if (roll_active) {
+    // Dibujar bola negra durante Roll
+    draw_set_color(c_black);
+    draw_circle(x, y, 30, false);
+    draw_set_color(c_white);
+    draw_circle(x, y, 30, true);  // borde blanco para visibilidad
+} else {
+    // Sprite normal (delegado al parent)
+    event_inherited();
+}
 
 // ══════════════════════════════════════════════════════════
 // 1b. PARRY POPUP — ! grande sobre la cabeza
@@ -897,12 +905,39 @@ if (variable_global_exists("debug_dev") && global.debug_dev) {
         }
     }
 
+    // Dash info
+    if (player_state == PSTATE.DASH) {
+        draw_set_color(make_color_rgb(100, 150, 200));
+        draw_text(_dbg_x, _dbg_y + 84, "DASH: " + string(dashTimer) + "f");
+    }
+
+    // Roll Dodge debug
+    if (roll_active) {
+        draw_set_color(make_color_rgb(100, 200, 100));
+        draw_text(_dbg_x, _dbg_y + 96, "ROLL: " + string(roll_timer) + "f (dir:" + string(roll_dir) + ")");
+        draw_text(_dbg_x, _dbg_y + 108, "Speed: " + string(roll_speed) + " px/f");
+        draw_text(_dbg_x, _dbg_y + 120, "Invuln: EVADING - DAMAGE BLOCKED");
+    } else if (roll_cooldown_timer > 0) {
+        draw_set_color(make_color_rgb(150, 150, 100));
+        draw_text(_dbg_x, _dbg_y + 96, "Roll CD: " + string(roll_cooldown_timer) + "f");
+    }
+
+    // Mostrar teclas de input para Roll y Dash
+    draw_set_color(make_color_rgb(200, 150, 100));
+    if (keyboard_check(vk_shift)) {
+        draw_text(_dbg_x, _dbg_y + 132, "INPUT: DASH (held)");
+    }
+    if (keyboard_check_pressed(ord("A"))) {
+        draw_text(_dbg_x, _dbg_y + 132, "INPUT: ROLL (pressed)");
+    }
+
     // Beat 'em up mode debug
     if (beat_em_up_active) {
         draw_set_color(c_red);
-        draw_text(_dbg_x, _dbg_y + 96, "BEAT 'EM UP: " + string(beat_em_up_timer) + "f  MODE:" + combat_mode);
-        draw_text(_dbg_x, _dbg_y + 108, "Attack: " + beat_em_up_attack_type + " #" + string(beat_combo_index + 1));
-        draw_text(_dbg_x, _dbg_y + 120, "Cooldown: " + string(beat_em_up_cooldown_timer) + "f");
+        var _beat_y_base = roll_active ? 132 : 96;
+        draw_text(_dbg_x, _dbg_y + _beat_y_base, "BEAT 'EM UP: " + string(beat_em_up_timer) + "f  MODE:" + combat_mode);
+        draw_text(_dbg_x, _dbg_y + _beat_y_base + 12, "Attack: " + beat_em_up_attack_type + " #" + string(beat_combo_index + 1));
+        draw_text(_dbg_x, _dbg_y + _beat_y_base + 24, "Cooldown: " + string(beat_em_up_cooldown_timer) + "f");
 
         // Input display para debugging
         var _input_str = "Inputs: ";
@@ -911,6 +946,6 @@ if (variable_global_exists("debug_dev") && global.debug_dev) {
         if (global.inp.move_axis < 0) _input_str += "UP ";
         if (global.inp.dash_pressed) _input_str += "DASH ";
         draw_set_color(make_color_rgb(200, 200, 0));
-        draw_text(_dbg_x, _dbg_y + 132, _input_str);
+        draw_text(_dbg_x, _dbg_y + _beat_y_base + 36, _input_str);
     }
 }

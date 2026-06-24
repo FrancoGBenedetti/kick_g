@@ -145,6 +145,14 @@ take_damage = function(_amount, _source) {
         exit;
     }
 
+    // ── Roll Dodge: invulnerabilidad temporal ──────────────────
+    // Si el player está haciendo Roll, es completamente invulnerable.
+    // Esto NO activa damage_recovery_lock, NO hace blink, NO aplica knockback.
+    if (variable_instance_exists(id, "roll_active") && roll_active) {
+        show_debug_message("[ACTOR-DAMAGE] ^^ EVADING BY ROLL — damage blocked");
+        exit;
+    }
+
     hp = max(hp - _amount, 0);
     show_debug_message("[ACTOR-DAMAGE] ^^ DAÑO APLICADO: hp_nuevo=" + string(hp));
 

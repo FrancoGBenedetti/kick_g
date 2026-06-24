@@ -49,8 +49,10 @@ switch (estate) {
         if (_player_exists && _dist < detection_range) {
             estate    = ESTATE_AIM;
             aim_timer = aim_charge_time;
-            // Orientarse hacia el jugador
+            // Orientarse hacia el jugador y bloquear facing durante el ataque
             if (_chase_dir != 0) facing = _chase_dir;
+            attack_facing_locked = true;  // Bloquear giros durante ataque
+            attack_facing        = facing; // Guardar dirección
             aim_angle = _calc_aim();
         }
     break;
@@ -106,18 +108,21 @@ switch (estate) {
     break;
 
     case ESTATE_AIM:
-        // Parado, actualizando ángulo y facing
+        // Parado, actualizando ángulo y facing (facing bloqueado durante ataque)
         move_x = 0;
         if (_player_exists) {
-            if (_chase_dir != 0) facing = _chase_dir;
+            // NO actualizar facing si ya decidió atacar
+            if (!attack_facing_locked && _chase_dir != 0) facing = _chase_dir;
             aim_angle = _calc_aim();
         }
 
         aim_timer--;
         if (aim_timer <= 0) {
-            // ── DISPARO ───────────────────────────────────────
+            // ── DISPARO usando attack_facing (dirección bloqueada) ─────
             var _enemy_id = id;
-            var _spawn_x  = x + (facing > 0 ? col_right + projectile_spawn_offset_x : col_left - projectile_spawn_offset_x);
+            // Usar attack_facing para que la flecha salga en la dirección decidida
+            var _fire_facing = attack_facing;
+            var _spawn_x  = x + (_fire_facing > 0 ? col_right + projectile_spawn_offset_x : col_left - projectile_spawn_offset_x);
             var _spawn_y  = y + projectile_spawn_offset_y;
 
             var _arrow = instance_create_layer(_spawn_x, _spawn_y, "Instances_2", obj_enemy_arrow);
@@ -125,9 +130,9 @@ switch (estate) {
                 owner   = _enemy_id;
                 damage  = _enemy_id.enemy_damage;
                 var _rad = degtorad(_enemy_id.aim_angle);
-                // vel_x: dirección del facing × velocidad × cos(ángulo)
+                // vel_x: dirección del ataque bloqueado × velocidad × cos(ángulo)
                 // vel_y: velocidad × sin(ángulo)  (negativo = arriba en coords de pantalla)
-                vel_x = _enemy_id.facing * _enemy_id.arrow_speed * cos(_rad);
+                vel_x = _fire_facing * _enemy_id.arrow_speed * cos(_rad);
                 vel_y = _enemy_id.arrow_speed * sin(_rad);
             }
 
@@ -152,6 +157,15 @@ switch (estate) {
 
     case ESTATE_COOLDOWN:
         move_x = 0;
+
+        // ── Timer de cooldown, luego volver a PATROL ────────────────
+        shoot_cooldown_timer--;
+        if (shoot_cooldown_timer <= 0) {
+            // ── Liberar bloqueo de facing al terminar cooldown ────
+            attack_facing_locked = false;
+            estate = ESTATE_PATROL;
+            show_debug_message("[ARCHER] COOLDOWN → PATROL: facing unlocked");
+        }
     break;
 }
 

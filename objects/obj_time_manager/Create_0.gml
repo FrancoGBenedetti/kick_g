@@ -18,6 +18,17 @@ global.time_scale   = 1.0;
 // 0.1 = 10% de velocidad → slow-mo muy visible para testear parry timing.
 global.slowmo_scale = 0.1;   // TEMP DEBUG: más lento para visualizar parry
 
+// ── Slow Motion centralizado (con timer) ──────────────────
+// Sistema nuevo para slow motion con duración automática.
+// Separa el slow motion de parry del slow motion global genérico.
+global.slowmo_active      = false;       // true mientras hay efecto activo
+global.slowmo_timer       = 0;           // cuenta regresiva en frames reales
+global.slowmo_scale_temporary = 1.0;     // escala mientras está activo
+
+// Valores de parry específicos (configurables)
+global.parry_slowmo_scale = 0.1;         // x0.1 velocidad (mismo que slowmo_scale)
+global.parry_slowmo_duration = 60;       // 60 frames reales (~1 segundo)
+
 // ── Frame-skip accumulator ────────────────────────────────
 // Mecanismo: cada Begin Step se suma time_scale al acumulador.
 // Cuando llega a 1.0, se "consume" un game-step (do_step = true).
@@ -58,4 +69,6 @@ global.enemy_test_hp_multiplier = 2.0;  // multiplicador de HP para testing (x2 
 scr_difficulty_config();
 show_debug_message("[INIT] Dificultad: " + get_difficulty_string());
 show_debug_message("[INIT] Enemy HP multiplier: x" + string(global.enemy_test_hp_multiplier));
-show_debug_message("[INIT] Controles: [5]Dev [6]Easy [7]Normal [8]Hard [9]HUD");
+show_debug_message("[INIT] DEBUG: [Y]Visual [E]Easy [R]Normal [T]Hard");
+show_debug_message("[INIT] CONTROLES: [DASH]Dash | [A]Roll | [B]BeatEmUp | [Z]Espada | [X]Arco");
+show_debug_message("[INIT] NOTA: Jump Back desactivado. Roll (A) es acción separada. Dash es normal.");

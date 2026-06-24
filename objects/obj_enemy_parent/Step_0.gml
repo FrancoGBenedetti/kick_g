@@ -190,3 +190,7 @@ if (enemy_separation_enabled && hitstun_timer <= 0 && blocked_by_other_enemies) 
 
 // ── Física / actor parent ─────────────────────────────────
 event_inherited();   // → obj_actor_parent.Step: gravedad, colisiones, i-frames, etc.
+
+// ── SLOW MOTION: actualizar image_speed con multiplicador global ─
+// Permite que las animaciones del enemigo respondan a parry slow-mo
+image_speed = base_image_speed * get_time_scale();
