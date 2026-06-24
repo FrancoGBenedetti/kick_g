@@ -4,6 +4,10 @@
 var _kb  = global.keybinds;
 var _inp = global.inp;
 
+if (!instance_exists(obj_pause_menu) && room != RoomStartMenu) {
+    instance_create_depth(0, 0, -100000, obj_pause_menu);
+}
+
 var _keyboard = scr_input_read_keyboard(_kb);
 var _gamepad  = scr_input_read_gamepad(_kb, gp_prev_move_axis, gp_prev_aim_axis);
 

@@ -1,0 +1,13 @@
+{
+  "$GMScript":"v1",
+  "%Name":"scr_input_ensure_globals",
+  "isCompatibility":false,
+  "isDnD":false,
+  "name":"scr_input_ensure_globals",
+  "parent":{
+    "name":"Managers",
+    "path":"folders/Scripts/Managers.yy"
+  },
+  "resourceType":"GMScript",
+  "resourceVersion":"2.0"
+}

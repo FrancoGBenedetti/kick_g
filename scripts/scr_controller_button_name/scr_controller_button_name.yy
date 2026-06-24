@@ -1,0 +1,13 @@
+{
+  "$GMScript":"v1",
+  "%Name":"scr_controller_button_name",
+  "isCompatibility":false,
+  "isDnD":false,
+  "name":"scr_controller_button_name",
+  "parent":{
+    "name":"Managers",
+    "path":"folders/Scripts/Managers.yy"
+  },
+  "resourceType":"GMScript",
+  "resourceVersion":"2.0"
+}

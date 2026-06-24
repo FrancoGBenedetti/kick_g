@@ -6,6 +6,12 @@
 //   time_scale = 0.2  →  step_accum +0.2 cada frame   →  do_step true 1/5 frames
 //   time_scale = 0.0  →  step_accum +0.0              →  do_step false siempre (congelado)
 
+if (variable_global_exists("game_paused") && global.game_paused) {
+    global.step_accum = 0;
+    global.do_step = false;
+    exit;
+}
+
 global.step_accum += global.time_scale;
 global.do_step     = (global.step_accum >= 1.0);
 

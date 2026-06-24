@@ -1,3 +1,5 @@
+if (variable_global_exists("game_paused") && global.game_paused) exit;
+
 // F8 → toggle debug HUD de movimiento en pantalla
 if (keyboard_check_pressed(vk_f8)) {
     player_debug_visible = !player_debug_visible;
