@@ -113,6 +113,85 @@ can_air_dash      = true;  // se consume al dashear en el aire; se restaura al a
 dash_attack_used        = false; // solo un dash attack por dash; reset al iniciar dash nuevo
 dash_attack_damage_mult = 2;     // multiplicador de daño respecto a sword_damage_1
 
+// ── Jump Back / Backstep Jump ─────────────────────────────
+// Evasión hacia atrás: activada con dash PRIMERO, luego dirección contraria
+// Consume el mismo dash charge que dash normal.
+// Propósito: evasión táctica contra ataques enemigos.
+//
+// NUEVA LÓGICA: facing se GUARDA al presionar dash, no cambia durante jump back.
+// DISTANCIA: ~216 píxeles (12 px/frame × 18 frames) para esquivar hitboxes enemigos
+jump_back_hsp                = 12;   // velocidad horizontal (px/frame) — hacia atrás
+jump_back_vsp                = -8;   // impulso vertical (px/frame) — hacia arriba
+jump_back_duration           = 18;   // frames de movimiento forzado (~0.3 segundos)
+jump_back_control_lock       = 12;   // frames durante los cuales se bloquea input horizontal
+jump_back_cooldown_max       = 20;   // cooldown entre jump_backs
+jump_back_uses_dash_charge   = true; // consume el dash charge como dash normal
+jump_back_afterimage_enabled = false; // no mostrar afterimage por ahora
+jump_back_iframes            = 0;    // sin invulnerabilidad por ahora
+jump_back_can_air            = false; // solo desde suelo por ahora
+can_jump_back_ground         = true; // permiso para jump_back en suelo
+can_jump_back_air            = false; // permiso para jump_back en aire
+jump_back_active             = false; // true mientras jump_back está en movimiento
+jump_back_timer              = 0;    // cuenta regresiva de movimiento
+jump_back_control_lock_timer = 0;    // cuenta regresiva de bloqueo de input
+
+// ── Input window para jump back ────────────────────────────
+// Ventana de tiempo después de presionar dash para detectar dirección contraria.
+jump_back_input_window       = 6;    // frames para presionar dirección contraria
+jump_back_input_timer        = 0;    // cuenta regresiva de ventana disponible
+jump_back_stored_facing      = 1;    // facing guardado cuando se presiona dash
+jump_back_facing_locked      = false; // true mientras no se puede cambiar facing
+
+// ══════════════════════════════════════════════════════════
+// BEAT 'EM UP MODE — Combate cuerpo a cuerpo temporal
+// ══════════════════════════════════════════════════════════
+// Prototipo de modo de boxeo: dura 5 segundos, reemplaza espada/arco por punches.
+// Activación temporal: presionar B (futuro: reemplazar con otra mecánica).
+combat_mode               = "normal";        // "normal" o "beat_em_up"
+beat_em_up_active         = false;           // true mientras está el modo activo
+beat_em_up_duration       = 300;             // 5 segundos a 60 FPS
+beat_em_up_timer          = 0;               // cuenta regresiva
+
+// ── Combo de punches normal (3 golpes rápidos) ────────────
+beat_punch_damage         = 1;               // daño por punch
+beat_punch_reach          = 90;              // alcance horizontal
+beat_punch_height         = 75;              // altura del hitbox
+beat_punch_offset_y       = -80;             // altura relativa al player
+beat_punch_active_duration = 5;              // frames que la hitbox está activa
+beat_punch_cooldown       = 8;               // frames de espera entre punches
+beat_combo_index          = 0;               // 0-2 (3 golpes: punch 1/2/3)
+beat_combo_timer          = 0;               // timer para siguiente punch
+beat_combo_window         = 20;              // frames para siguiente punch en combo
+
+// ── Golpe fuerte (Heavy) ──────────────────────────────────
+beat_heavy_damage         = 3;               // daño fuerte
+beat_heavy_reach          = 110;             // alcance mayor
+beat_heavy_height         = 90;              // altura del hitbox
+beat_heavy_offset_y       = -85;             // altura relativa
+beat_heavy_active_duration = 8;              // hitbox activa más tiempo
+beat_heavy_cooldown       = 25;              // espera entre heavies
+beat_heavy_knockback_hsp  = 18;              // knockback horizontal
+beat_heavy_knockback_vsp  = -6;              // knockback vertical
+
+// ── Uppercut (Arriba + Heavy) ────────────────────────────
+beat_uppercut_damage      = 2;               // daño de uppercut
+beat_uppercut_reach       = 85;              // alcance vertical
+beat_uppercut_height      = 140;             // tall hitbox
+beat_uppercut_offset_y    = -130;            // muy arriba
+beat_uppercut_enemy_vsp   = -18;             // lanza enemigo hacia arriba
+beat_uppercut_enemy_hsp   = 4;               // knockback horizontal mínimo
+beat_uppercut_hitstun     = 30;              // hitstun aéreo
+beat_uppercut_cooldown    = 28;              // espera entre uppercutes
+
+// ── State del ataque Beat 'em Up actual ───────────────────
+beat_em_up_attack_type    = "";              // "punch", "heavy", "uppercut"
+beat_em_up_attack_active  = false;           // true mientras hitbox está activa
+beat_em_up_attack_timer   = 0;               // cuenta regresiva de hitbox
+beat_em_up_cooldown_timer = 0;               // cooldown global
+
+// ── Enemigos durante Beat 'em Up ─────────────────────────
+beat_em_up_enemy_iframes  = 0;               // iframes cortos para combos rápidos
+
 // ══════════════════════════════════════════════════════════
 // SUPER ENERGY — medidor de recurso para futuros super ataques
 // ══════════════════════════════════════════════════════════
@@ -758,6 +837,54 @@ player_can_parry = function() {
     return ability_parry && !is_dead;
 };
 
+// ── Jump Back — Evasión hacia atrás ─────────────────────────
+// Activado cuando: dash pressed + input direction == -facing
+// Actúa como evasión táctica contra ataques.
+player_can_jump_back = function() {
+    if (is_dead) return false;
+    if (damage_recovery_lock) return false;
+    if (hitstun_timer > 0) return false;
+    if (player_state == PSTATE.COUNTER_ATTACK) return false;
+    if (player_state == PSTATE.WALL) return false;
+
+    var _can_ground = can_jump_back_ground && isGrounded;
+    var _can_air = can_jump_back_air && !isGrounded;
+
+    return _can_ground || _can_air;
+};
+
+start_jump_back = function(_stored_facing = jump_back_stored_facing) {
+    if (!player_can_jump_back()) {
+        show_debug_message("[JUMP_BACK] Condición NO cumplida");
+        return false;
+    }
+
+    jump_back_active = true;
+    jump_back_timer = jump_back_duration;
+    jump_back_control_lock_timer = jump_back_control_lock;
+    jump_back_facing_locked = true;  // Bloquear cambios de facing
+
+    // Aplicar movimiento inicial usando el FACING GUARDADO
+    vel_x = -_stored_facing * jump_back_hsp;  // ← Usa facing guardado, no facing actual
+    vel_y = jump_back_vsp;
+
+    // Asegurar que facing permanece en el valor guardado
+    facing = _stored_facing;
+    image_xscale = abs(image_xscale) * _stored_facing;
+
+    // Consumir dash charge si está habilitado
+    if (jump_back_uses_dash_charge) {
+        can_air_dash = false;  // consume el dash aéreo si estaba disponible
+    }
+
+    // Debug
+    show_debug_message("[JUMP_BACK] INICIADO - FACING LOCKED: stored=" + string(_stored_facing)
+        + "  vel_x=" + string(vel_x) + "  vel_y=" + string(vel_y)
+        + "  movement=hacia atrás");
+
+    return true;
+};
+
 player_can_bow = function() {
     return !damage_recovery_lock && !is_dead;
 };
@@ -1111,3 +1238,160 @@ take_damage = function(_amount, _source) {
         show_debug_message("[PLAYER] Daño recibido: damage_recovery_lock activado por " + string(damage_recovery_lock_timer) + " frames (dificultad: " + get_difficulty_string() + ")");
     }
 };
+
+/// @function start_beat_em_up_mode()
+/// @description Activa el Beat 'em Up Mode por 5 segundos (300 frames)
+function start_beat_em_up_mode() {
+    beat_em_up_active = true;
+    beat_em_up_timer = beat_em_up_duration;
+    beat_combo_index = 0;
+    beat_combo_timer = 0;
+    beat_em_up_cooldown_timer = 0;
+    beat_em_up_attack_active = false;
+    combat_mode = "beat_em_up";
+    show_debug_message("[BEAT-EM-UP] Modo activado — 5 segundos");
+}
+
+/// @function end_beat_em_up_mode()
+/// @description Desactiva el Beat 'em Up Mode
+function end_beat_em_up_mode() {
+    beat_em_up_active = false;
+    beat_em_up_timer = 0;
+    beat_combo_index = 0;
+    beat_combo_timer = 0;
+    beat_em_up_attack_active = false;
+    beat_em_up_attack_type = "";
+    combat_mode = "normal";
+    show_debug_message("[BEAT-EM-UP] Modo desactivado");
+}
+
+/// @function update_beat_em_up_mode()
+/// @description Actualiza la lógica de inputs del Beat 'em Up Mode
+/// @details Llamar una vez por frame en la sección gated del Step
+/// Detecta: Z = Punch/combo, Shift = Heavy, Up+Shift = Uppercut
+function update_beat_em_up_mode() {
+    if (!beat_em_up_active || beat_em_up_cooldown_timer > 0) return;
+
+    var _up = global.inp.move_axis < 0;   // arriba detectado
+    var _heavy_pressed = keyboard_check_pressed(vk_shift);
+
+    // ── Uppercut: Up + Heavy ─────────────────────────────────
+    if (_up && _heavy_pressed) {
+        player_start_beat_uppercut();
+        return;
+    }
+
+    // ── Heavy Punch: Shift ───────────────────────────────────
+    if (_heavy_pressed) {
+        player_start_beat_heavy();
+        return;
+    }
+
+    // ── Punch Combo: Z ───────────────────────────────────────
+    if (global.inp.attack_pressed) {
+        // Incrementar combo solo si hay tiempo (dentro de combo window)
+        if (beat_combo_timer < beat_combo_window) {
+            beat_combo_index = (beat_combo_index + 1) mod 3;
+        } else {
+            beat_combo_index = 0;
+        }
+        beat_combo_timer = 0;
+        player_start_beat_punch();
+        return;
+    }
+}
+
+/// @function player_start_beat_punch()
+/// @description Inicia un punch (del combo de 3 golpes)
+function player_start_beat_punch() {
+    beat_em_up_attack_type = "punch";
+    beat_em_up_attack_active = true;
+    beat_em_up_attack_timer = beat_punch_active_duration;
+    beat_em_up_cooldown_timer = beat_punch_cooldown;
+
+    // Aplicar damage a enemigos cercanos
+    update_beat_em_up_hitbox(beat_punch_damage, beat_punch_reach, beat_punch_height,
+                              beat_punch_offset_y, beat_punch_cooldown);
+    show_debug_message("[BEAT-PUNCH] Combo #" + string(beat_combo_index + 1));
+}
+
+/// @function player_start_beat_heavy()
+/// @description Inicia un Heavy Punch
+function player_start_beat_heavy() {
+    beat_em_up_attack_type = "heavy";
+    beat_em_up_attack_active = true;
+    beat_em_up_attack_timer = beat_heavy_active_duration;
+    beat_em_up_cooldown_timer = beat_heavy_cooldown;
+
+    // Aplicar damage a enemigos con knockback mayor
+    update_beat_em_up_hitbox(beat_heavy_damage, beat_heavy_reach, beat_heavy_height,
+                              beat_heavy_offset_y, beat_heavy_cooldown,
+                              beat_heavy_knockback_hsp, beat_heavy_knockback_vsp);
+    show_debug_message("[BEAT-HEAVY] Golpe fuerte");
+}
+
+/// @function player_start_beat_uppercut()
+/// @description Inicia un Uppercut (arriba + heavy)
+function player_start_beat_uppercut() {
+    beat_em_up_attack_type = "uppercut";
+    beat_em_up_attack_active = true;
+    beat_em_up_attack_timer = beat_heavy_active_duration;
+    beat_em_up_cooldown_timer = beat_uppercut_cooldown;
+
+    // Lanzar enemigos hacia arriba
+    update_beat_em_up_hitbox(beat_uppercut_damage, beat_uppercut_reach, beat_uppercut_height,
+                              beat_uppercut_offset_y, beat_uppercut_cooldown,
+                              beat_uppercut_enemy_hsp, beat_uppercut_enemy_vsp);
+    show_debug_message("[BEAT-UPPERCUT] ¡Arriba!");
+}
+
+/// @function update_beat_em_up_hitbox(_damage, _reach, _height, _offset_y, _cooldown, [_kb_hsp], [_kb_vsp])
+/// @description Detecta y daña enemigos en el área del ataque Beat 'em Up
+/// @param {real} _damage Daño a aplicar
+/// @param {real} _reach Alcance horizontal
+/// @param {real} _height Altura del hitbox
+/// @param {real} _offset_y Offset vertical relativo
+/// @param {real} _cooldown Cooldown post-ataque (no usado aquí, solo info)
+/// @param {real} _kb_hsp Knockback horizontal (default: 0)
+/// @param {real} _kb_vsp Knockback vertical (default: 0)
+function update_beat_em_up_hitbox(_damage, _reach, _height, _offset_y, _cooldown,
+                                   _kb_hsp = 0, _kb_vsp = 0) {
+    // Hitbox origin: adelante del player + offset
+    var _hb_x = x + (facing > 0 ? _reach : -_reach);
+    var _hb_y = y + _offset_y;
+    var _hb_x1 = _hb_x - _reach / 2;
+    var _hb_y1 = _hb_y - _height / 2;
+    var _hb_x2 = _hb_x + _reach / 2;
+    var _hb_y2 = _hb_y + _height / 2;
+
+    // Detectar y dañar enemigos espadachín en el área
+    if (instance_exists(obj_enemy_swordsman)) {
+        with (obj_enemy_swordsman) {
+            if (instance_exists(id) && !is_invulnerable &&
+                bbox_left < _hb_x2 && bbox_right > _hb_x1 &&
+                bbox_top < _hb_y2 && bbox_bottom > _hb_y1) {
+                take_damage(_damage, id);  // id = enemy, por parámetro _source
+                if (_kb_hsp != 0 || _kb_vsp != 0) {
+                    vel_x = _kb_hsp;
+                    vel_y = _kb_vsp;
+                }
+            }
+        }
+    }
+
+    // Detectar y dañar enemigos arquero en el área
+    if (instance_exists(obj_enemy_archer)) {
+        with (obj_enemy_archer) {
+            if (instance_exists(id) && !is_invulnerable &&
+                bbox_left < _hb_x2 && bbox_right > _hb_x1 &&
+                bbox_top < _hb_y2 && bbox_bottom > _hb_y1) {
+                take_damage(_damage, id);  // id = enemy, por parámetro _source
+                if (_kb_hsp != 0 || _kb_vsp != 0) {
+                    vel_x = _kb_hsp;
+                    vel_y = _kb_vsp;
+                }
+            }
+        }
+    }
+}
+;

@@ -47,6 +47,10 @@ var _bow_busy   = bow_is_charging;   // cubre carga + pending-release
 var _block_busy = (player_state == PSTATE.BLOCK);
 
 var _dir       = global.inp.move_axis;
+// Bloquear input horizontal si jump_back está en fase de control lock
+if (jump_back_active && jump_back_control_lock_timer > 0) {
+    _dir = 0;
+}
 var _want_jump = global.inp.jump_pressed;
 var _want_dash = global.inp.dash_pressed;
 
@@ -148,7 +152,7 @@ if (global.inp.attack_pressed && ability_sword && !_bow_busy && !_block_busy
 //   Si el jugador está en PSTATE.DASH al presionar arco, el dash se cancela
 //   inmediatamente y el arco comienza. Funciona en suelo y en aire.
 if (global.inp.ranged_pressed && ability_bow && !_bow_busy && bow_cooldown_timer <= 0
-    && action_lock_timer <= 0 && !_block_busy
+    && action_lock_timer <= 0 && !_block_busy && !beat_em_up_active
     && player_state != PSTATE.WALL && player_can_bow()) {
 
     // ── Dash cancel → arco ────────────────────────────────
@@ -193,7 +197,13 @@ if (bow_is_charging && global.inp.ranged_released) {
     bow_release_pending = true;
 }
 
-// ── ARCO: acumulación de carga (always — tiempo real) ─────
+// ── BEAT 'EM UP MODE: activación ──────────────────────────
+// Activar con tecla B: dura 5 segundos, reemplaza espada/arco.
+if (keyboard_check_pressed(ord("B")) && !beat_em_up_active && ability_sword) {
+    start_beat_em_up_mode();
+}
+
+// ARCO: acumulación de carga (always — tiempo real) ─────
 // IMPORTANTE: esta acumulación corre en la sección always, NO en gated.
 // Motivo: durante cámara lenta (time_scale=0.2) la sección gated ocurre
 // solo 1 de cada 5 frames reales. Si la acumulación estuviera en gated,
@@ -290,6 +300,38 @@ if (hitstun_timer > 0) {
 // ══════════════════════════════════════════════════════════
 // SECCIÓN GATED — se ejecuta a ritmo de global.time_scale
 // ══════════════════════════════════════════════════════════
+
+// ── BEAT 'EM UP MODE: timer y cooldowns ───────────────────
+// Decrement beat_em_up_timer para llevar cuenta de duración.
+// Cuando llega a 0: end_beat_em_up_mode().
+if (beat_em_up_active) {
+    beat_em_up_timer--;
+    if (beat_em_up_timer <= 0) {
+        end_beat_em_up_mode();
+    }
+}
+
+// Decrement attack cooldown (impide spam rápido)
+if (beat_em_up_cooldown_timer > 0) {
+    beat_em_up_cooldown_timer--;
+}
+
+// Decrement active attack timer (cuánto tiempo sigue activa la hitbox)
+if (beat_em_up_attack_active) {
+    beat_em_up_attack_timer--;
+    if (beat_em_up_attack_timer <= 0) {
+        beat_em_up_attack_active = false;
+    }
+}
+
+// Decrement combo window (si pasa el tiempo sin siguiente punch, reset combo)
+if (beat_em_up_active && beat_combo_index > 0) {
+    beat_combo_timer++;
+    if (beat_combo_timer >= beat_combo_window) {
+        beat_combo_index = 0;   // reset combo al siguiente punch
+        beat_combo_timer = 0;
+    }
+}
 
 // ── Helper: ¿está el jugador en un estado de ataque? ──────
 var _in_attack = (player_state == PSTATE.ATTACK_1
@@ -388,10 +430,18 @@ if (bow_release_pending && !_in_attack) {
     aim_angle           = 0;   // siempre resetear al terminar (disparo o cancelación)
 }
 
+// ── BEAT 'EM UP MODE: INPUTS ──────────────────────────────
+// Si el modo está activo, procesar inputs de punch/heavy/uppercut.
+// Tiene prioridad sobre espada/arco normales.
+if (beat_em_up_active) {
+    update_beat_em_up_mode();
+}
+
 // ── ESPADA: entrada al combo ──────────────────────────────
 // Un ataque se puede iniciar desde IDLE, RUN, JUMP o FALL.
 // Bloqueado desde DASH, WALL, otro ATTACK_* (incluido DOWN_SLASH)
 // y durante combo_cooldown_timer.
+// BLOQUEADO si: beat_em_up_active (prioridad a beat 'em up mode)
 // ── PSTATE.DASH ya no bloquea el ataque ──────────────────
 // El dash puede cancelarse hacia espada o arco (ver bloques siguientes).
 // Si el jugador presiona ataque durante DASH, el dash se interrumpe y
@@ -401,6 +451,7 @@ var _can_attack = !_in_attack
                && player_state != PSTATE.BLOCK  // no atacar durante block/parry
                && combo_cooldown_timer <= 0      // cooldown post-combo
                && !_bow_busy                     // bloqueo mutuo: no espada durante arco
+               && !beat_em_up_active             // beat 'em up mode bloqueado espada/arco
                && player_can_attack();           // bloquea durante damage_recovery_lock
 
 // ── COUNTER ATTACK: activar desde ventana de parry ───────
@@ -499,11 +550,51 @@ if (player_state == PSTATE.WALL
     player_set_state(PSTATE.JUMP);
 }
 
+// ── JUMP BACK: Evasión hacia atrás con ventana de input ─────
+// Nueva lógica:
+//   1. Al presionar dash: guardar facing actual
+//   2. Abrir ventana de input (6 frames)
+//   3. Si se presiona dirección contraria DURANTE esa ventana: jump back
+//   4. Si no: dash normal
+// El facing se BLOQUEA durante jump back para evitar que gire.
+//
+var _jump_back_triggered = false;
+
+// ── Paso 1: Presionar dash abre ventana de input ─────────────
+if (ability_dash && _want_dash && dashCooldownTimer == 0 && player_state != PSTATE.DASH) {
+    // Guardar facing actual para usar en jump back
+    jump_back_stored_facing = facing;
+    jump_back_input_timer = jump_back_input_window;  // 6 frames para detectar dirección contraria
+
+    show_debug_message("[JUMP_BACK] Ventana abierta - facing guardado: " + string(jump_back_stored_facing));
+}
+
+// ── Paso 2: Durante ventana de input, detectar dirección contraria ──
+if (jump_back_input_timer > 0 && player_can_jump_back()) {
+    jump_back_input_timer--;
+
+    // Leer input directo (no usar _dir que ya fue procesado)
+    var _current_input_dir = keyboard_check(vk_right) - keyboard_check(vk_left);
+
+    // Si presiona dirección contraria al facing guardado
+    if (_current_input_dir != 0 && _current_input_dir == -jump_back_stored_facing) {
+        _jump_back_triggered = start_jump_back(jump_back_stored_facing);
+        if (_jump_back_triggered) {
+            dashCooldownTimer = dash_cooldown_max;
+            if (!isGrounded && jump_back_uses_dash_charge) can_air_dash = false;
+            jump_back_input_timer = 0;  // Cerrar ventana
+        }
+    }
+} else {
+    jump_back_input_timer = 0;  // Cerrar ventana si no se cumple
+}
+
 // ── DASH: activación ──────────────────────────────────────
 // Bloqueado durante ataque y durante arco activo.
 // Nota: el arco bloquea el dash para evitar cancelar la carga accidentalmente.
 // Si en el futuro se quiere permitir "dash cancela arco", eliminar !_bow_busy aquí.
-if (ability_dash && _want_dash && dashCooldownTimer == 0
+// IMPORTANTE: Si jump_back se ejecutó, NO ejecutar dash normal.
+if (!_jump_back_triggered && ability_dash && _want_dash && dashCooldownTimer == 0
     && player_state != PSTATE.DASH && !_in_attack && !_bow_busy && !_block_busy && player_can_dash()) {
     // Air dash requiere ability_air_dash además de ability_dash.
     var _can_dash = isGrounded || (can_air_dash && ability_air_dash);
@@ -524,6 +615,24 @@ if (ability_dash && _want_dash && dashCooldownTimer == 0
         if (!isGrounded) can_air_dash = false;
         player_set_state(PSTATE.DASH);
         _in_attack = false;
+    }
+}
+
+// ── JUMP BACK: Actualizar timers y aplicar física ──────────
+if (jump_back_active) {
+    if (jump_back_timer > 0) {
+        // Mantener movimiento inicial durante jump_back_timer
+        // vel_x y vel_y ya fueron asignados en start_jump_back()
+        // Aquí solo se decremente el timer
+        jump_back_timer--;
+    } else {
+        // Jump back terminó — devolver control
+        jump_back_active = false;
+    }
+
+    // Bloquear input horizontal durante control_lock
+    if (jump_back_control_lock_timer > 0) {
+        jump_back_control_lock_timer--;
     }
 }
 
@@ -579,7 +688,8 @@ if (wallJumpLockTimer > 0) {
     // En el aire, si el jugador presiona la dirección contraria, facing se
     // actualiza y el impulso se redirige sin reiniciar el timer.
     // _dir ya tiene el input horizontal de este frame (read-only en esta sección).
-    if (!isGrounded && _dir != 0) {
+    // IMPORTANTE: NO cambiar facing si jump_back está buscando dirección contraria.
+    if (!isGrounded && _dir != 0 && jump_back_input_timer <= 0 && !jump_back_facing_locked) {
         facing = _dir;
     }
 
@@ -1584,4 +1694,17 @@ if (player_state == PSTATE.DASH
             player_anim_state = "idle";
         break;
     }
+}
+
+// ── JUMP BACK: Mantener facing bloqueado ───────────────────
+// Si jump_back está activo, asegurar que facing se mantiene en el valor guardado.
+// Esto impide que el input horizontal gire al personaje durante la evasión.
+if (jump_back_active && jump_back_facing_locked) {
+    facing = jump_back_stored_facing;
+    image_xscale = abs(image_xscale) * jump_back_stored_facing;
+}
+
+// ── Limpiar facing lock cuando jump_back termina ────────────
+if (!jump_back_active && jump_back_facing_locked) {
+    jump_back_facing_locked = false;  // Permitir que facing vuelva a cambiar
 }

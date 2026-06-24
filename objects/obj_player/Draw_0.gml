@@ -804,6 +804,71 @@ draw_set_color(_prev_color);
 draw_set_alpha(_prev_alpha);
 
 // ══════════════════════════════════════════════════════════
+// BEAT 'EM UP MODE — Red tint + duration bar + hitbox debug
+// ══════════════════════════════════════════════════════════
+if (beat_em_up_active) {
+    // ── Red tint (overlay sobre el sprite) ─────────────────
+    var _old_alpha = draw_get_alpha();
+    draw_set_alpha(0.3);
+    draw_set_color(c_red);
+    draw_rectangle(bbox_left, bbox_top, bbox_right, bbox_bottom, false);
+    draw_set_alpha(_old_alpha);
+
+    // ── Duration bar (arriba de la cabeza) ────────────────
+    var _bar_x = x - 30;
+    var _bar_y = y - 50;
+    var _bar_w = 60;
+    var _bar_h = 8;
+    var _progress = beat_em_up_timer / beat_em_up_duration;
+    _progress = max(0, min(1, _progress));  // clamp 0-1
+
+    // Fondo oscuro
+    draw_set_color(c_black);
+    draw_rectangle(_bar_x, _bar_y, _bar_x + _bar_w, _bar_y + _bar_h, false);
+
+    // Barra roja de progreso
+    draw_set_color(c_red);
+    draw_rectangle(_bar_x, _bar_y, _bar_x + (_bar_w * _progress), _bar_y + _bar_h, false);
+
+    // Borde blanco
+    draw_set_color(c_white);
+    draw_rectangle(_bar_x, _bar_y, _bar_x + _bar_w, _bar_y + _bar_h, true);
+
+    // ── Debug hitbox visualization ─────────────────────────
+    if (variable_global_exists("debug_dev") && global.debug_dev && beat_em_up_attack_active) {
+        draw_set_alpha(0.5);
+        draw_set_color(c_yellow);
+
+        var _hb_x, _hb_y, _hb_w, _hb_h;
+
+        if (beat_em_up_attack_type == "punch") {
+            _hb_x = x + (facing > 0 ? beat_punch_reach : -beat_punch_reach);
+            _hb_y = y + beat_punch_offset_y;
+            _hb_w = beat_punch_reach;
+            _hb_h = beat_punch_height;
+        } else if (beat_em_up_attack_type == "heavy") {
+            _hb_x = x + (facing > 0 ? beat_heavy_reach : -beat_heavy_reach);
+            _hb_y = y + beat_heavy_offset_y;
+            _hb_w = beat_heavy_reach;
+            _hb_h = beat_heavy_height;
+        } else if (beat_em_up_attack_type == "uppercut") {
+            _hb_x = x + (facing > 0 ? beat_uppercut_reach : -beat_uppercut_reach);
+            _hb_y = y + beat_uppercut_offset_y;
+            _hb_w = beat_uppercut_reach;
+            _hb_h = beat_uppercut_height;
+        } else {
+            _hb_w = 0; _hb_h = 0;
+        }
+
+        if (_hb_w > 0 && _hb_h > 0) {
+            draw_rectangle(_hb_x - _hb_w/2, _hb_y - _hb_h/2, _hb_x + _hb_w/2, _hb_y + _hb_h/2, false);
+        }
+
+        draw_set_alpha(_old_alpha);
+    }
+}
+
+// ══════════════════════════════════════════════════════════
 // DEBUG: MODO DEV — Info de estado del player
 // ══════════════════════════════════════════════════════════
 if (variable_global_exists("debug_dev") && global.debug_dev) {
@@ -832,5 +897,30 @@ if (variable_global_exists("debug_dev") && global.debug_dev) {
     if (damage_recovery_lock) {
         draw_set_color(c_red);
         draw_text(_dbg_x, _dbg_y + 48, "LOCK: " + string(damage_recovery_lock_timer) + "f");
+    }
+
+    // Jump back info
+    if (jump_back_input_timer > 0) {
+        draw_set_color(make_color_rgb(100, 200, 255));
+        draw_text(_dbg_x, _dbg_y + 60, "JB-WINDOW: " + string(jump_back_input_timer) + "f");
+        draw_text(_dbg_x, _dbg_y + 72, "Stored facing: " + string(jump_back_stored_facing));
+    }
+
+    if (jump_back_active) {
+        draw_set_color(make_color_rgb(0, 200, 255));
+        draw_text(_dbg_x, _dbg_y + 60, "JUMPBACK ACTIVE: " + string(jump_back_timer) + "f");
+        draw_text(_dbg_x, _dbg_y + 72, "Control-Lock: " + string(jump_back_control_lock_timer) + "f");
+        if (jump_back_facing_locked) {
+            draw_set_color(make_color_rgb(200, 100, 255));
+            draw_text(_dbg_x, _dbg_y + 84, "FACING LOCKED: " + string(jump_back_stored_facing));
+        }
+    }
+
+    // Beat 'em up mode debug
+    if (beat_em_up_active) {
+        draw_set_color(c_red);
+        draw_text(_dbg_x, _dbg_y + 96, "BEAT 'EM UP: " + string(beat_em_up_timer) + "f");
+        draw_text(_dbg_x, _dbg_y + 108, "Attack: " + beat_em_up_attack_type + " #" + string(beat_combo_index + 1));
+        draw_text(_dbg_x, _dbg_y + 120, "Cooldown: " + string(beat_em_up_cooldown_timer) + "f");
     }
 }
