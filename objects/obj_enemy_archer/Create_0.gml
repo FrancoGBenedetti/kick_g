@@ -9,7 +9,10 @@
 event_inherited();
 
 // ── Salud ──────────────────────────────────────────────────
-max_hp = 3;
+// Aplicar multiplicador de testing (global.enemy_test_hp_multiplier)
+// Default: max_hp = 3, con multiplicador x2 = 6
+var _base_hp = 3;
+max_hp = ceil(_base_hp * global.enemy_test_hp_multiplier);
 hp     = max_hp;
 
 // ── Flags de IA ───────────────────────────────────────────

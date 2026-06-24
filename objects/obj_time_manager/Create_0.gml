@@ -54,6 +54,8 @@ scr_hide_collision_layer();
 // También define funciones: set_difficulty(), get_difficulty_string().
 global.debug_dev = false;         // modo dev: muestra hitboxes, colisiones, datos
 global.debug_difficulty = false;  // toggle HUD de dificultad
+global.enemy_test_hp_multiplier = 2.0;  // multiplicador de HP para testing (x2 para probar combos)
 scr_difficulty_config();
 show_debug_message("[INIT] Dificultad: " + get_difficulty_string());
+show_debug_message("[INIT] Enemy HP multiplier: x" + string(global.enemy_test_hp_multiplier));
 show_debug_message("[INIT] Controles: [5]Dev [6]Easy [7]Normal [8]Hard [9]HUD");

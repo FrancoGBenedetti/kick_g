@@ -804,7 +804,8 @@ draw_set_color(_prev_color);
 draw_set_alpha(_prev_alpha);
 
 // ══════════════════════════════════════════════════════════
-// BEAT 'EM UP MODE — Red tint + duration bar + hitbox debug
+// BEAT 'EM UP MODE — Red tint + hitbox debug
+// (Barra de duración movida a Draw_GUI_0 para mejor visibilidad)
 // ══════════════════════════════════════════════════════════
 if (beat_em_up_active) {
     // ── Red tint (overlay sobre el sprite) ─────────────────
@@ -813,26 +814,6 @@ if (beat_em_up_active) {
     draw_set_color(c_red);
     draw_rectangle(bbox_left, bbox_top, bbox_right, bbox_bottom, false);
     draw_set_alpha(_old_alpha);
-
-    // ── Duration bar (arriba de la cabeza) ────────────────
-    var _bar_x = x - 30;
-    var _bar_y = y - 50;
-    var _bar_w = 60;
-    var _bar_h = 8;
-    var _progress = beat_em_up_timer / beat_em_up_duration;
-    _progress = max(0, min(1, _progress));  // clamp 0-1
-
-    // Fondo oscuro
-    draw_set_color(c_black);
-    draw_rectangle(_bar_x, _bar_y, _bar_x + _bar_w, _bar_y + _bar_h, false);
-
-    // Barra roja de progreso
-    draw_set_color(c_red);
-    draw_rectangle(_bar_x, _bar_y, _bar_x + (_bar_w * _progress), _bar_y + _bar_h, false);
-
-    // Borde blanco
-    draw_set_color(c_white);
-    draw_rectangle(_bar_x, _bar_y, _bar_x + _bar_w, _bar_y + _bar_h, true);
 
     // ── Debug hitbox visualization ─────────────────────────
     if (variable_global_exists("debug_dev") && global.debug_dev && beat_em_up_attack_active) {
@@ -919,8 +900,17 @@ if (variable_global_exists("debug_dev") && global.debug_dev) {
     // Beat 'em up mode debug
     if (beat_em_up_active) {
         draw_set_color(c_red);
-        draw_text(_dbg_x, _dbg_y + 96, "BEAT 'EM UP: " + string(beat_em_up_timer) + "f");
+        draw_text(_dbg_x, _dbg_y + 96, "BEAT 'EM UP: " + string(beat_em_up_timer) + "f  MODE:" + combat_mode);
         draw_text(_dbg_x, _dbg_y + 108, "Attack: " + beat_em_up_attack_type + " #" + string(beat_combo_index + 1));
         draw_text(_dbg_x, _dbg_y + 120, "Cooldown: " + string(beat_em_up_cooldown_timer) + "f");
+
+        // Input display para debugging
+        var _input_str = "Inputs: ";
+        if (global.inp.attack_pressed) _input_str += "Z ";
+        if (global.inp.ranged_pressed) _input_str += "X ";
+        if (global.inp.move_axis < 0) _input_str += "UP ";
+        if (global.inp.dash_pressed) _input_str += "DASH ";
+        draw_set_color(make_color_rgb(200, 200, 0));
+        draw_text(_dbg_x, _dbg_y + 132, _input_str);
     }
 }

@@ -19,6 +19,7 @@ function check_key_or_numpad(_key, _numpad_key) {
 // Muestra: colisiones, hitboxes, máscara del player, estado
 if (check_key_or_numpad(ord("5"), vk_numpad5)) {
     global.debug_collision_view = !global.debug_collision_view;
+    global.debug_dev = global.debug_collision_view;  // sincronizar con debug_dev
     var _layer = layer_get_id(COLLISION_LAYER);
     if (_layer != -1) {
         layer_set_visible(_layer, global.debug_collision_view);

@@ -309,6 +309,14 @@ if (beat_em_up_active) {
     if (beat_em_up_timer <= 0) {
         end_beat_em_up_mode();
     }
+
+    // ── DASH cancels Beat 'em Up Mode ─────────────────────
+    // Si el jugador presiona dash mientras está en Beat 'em Up,
+    // salir inmediatamente del modo y permitir dash normal.
+    if (_want_dash) {
+        end_beat_em_up_mode();
+        show_debug_message("[BEAT-EM-UP] CANCELLED BY DASH");
+    }
 }
 
 // Decrement attack cooldown (impide spam rápido)

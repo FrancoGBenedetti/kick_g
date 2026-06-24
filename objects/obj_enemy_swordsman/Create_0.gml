@@ -11,7 +11,10 @@
 event_inherited();   // obj_enemy_parent → obj_actor_parent
 
 // ── Salud ──────────────────────────────────────────────────
-max_hp = 4;
+// Aplicar multiplicador de testing (global.enemy_test_hp_multiplier)
+// Default: max_hp = 4, con multiplicador x2 = 8
+var _base_hp = 4;
+max_hp = ceil(_base_hp * global.enemy_test_hp_multiplier);
 hp     = max_hp;
 
 // ── Flags de IA ───────────────────────────────────────────

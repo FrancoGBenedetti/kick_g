@@ -1268,26 +1268,32 @@ function end_beat_em_up_mode() {
 /// @function update_beat_em_up_mode()
 /// @description Actualiza la lógica de inputs del Beat 'em Up Mode
 /// @details Llamar una vez por frame en la sección gated del Step
-/// Detecta: Z = Punch/combo, Shift = Heavy, Up+Shift = Uppercut
+/// Prioridad de input:
+///   1. Dash presionado → cancela Beat 'em Up (manejado en Step_0)
+///   2. Arriba + X → Uppercut
+///   3. X solo → Heavy Punch
+///   4. Z → Punch Combo
 function update_beat_em_up_mode() {
     if (!beat_em_up_active || beat_em_up_cooldown_timer > 0) return;
 
     var _up = global.inp.move_axis < 0;   // arriba detectado
-    var _heavy_pressed = keyboard_check_pressed(vk_shift);
+    var _ranged_pressed = global.inp.ranged_pressed;  // X key (normalmente arco)
 
-    // ── Uppercut: Up + Heavy ─────────────────────────────────
-    if (_up && _heavy_pressed) {
+    // ── Uppercut: Up + X ─────────────────────────────────────
+    if (_up && _ranged_pressed) {
         player_start_beat_uppercut();
+        show_debug_message("[BEAT-UPPERCUT INPUT] Up + X pressed");
         return;
     }
 
-    // ── Heavy Punch: Shift ───────────────────────────────────
-    if (_heavy_pressed) {
+    // ── Heavy Punch: X solo ───────────────────────────────────
+    if (_ranged_pressed) {
         player_start_beat_heavy();
+        show_debug_message("[BEAT-HEAVY INPUT] X pressed");
         return;
     }
 
-    // ── Punch Combo: Z ───────────────────────────────────────
+    // ── Punch Combo: Z ────────────────────────────────────────
     if (global.inp.attack_pressed) {
         // Incrementar combo solo si hay tiempo (dentro de combo window)
         if (beat_combo_timer < beat_combo_window) {
