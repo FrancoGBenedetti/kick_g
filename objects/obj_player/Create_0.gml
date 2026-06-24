@@ -1363,6 +1363,7 @@ function update_beat_em_up_hitbox(_damage, _reach, _height, _offset_y, _cooldown
     var _hb_y1 = _hb_y - _height / 2;
     var _hb_x2 = _hb_x + _reach / 2;
     var _hb_y2 = _hb_y + _height / 2;
+    var _player_id = id;  // guardar referencia al player para usar en with statement
 
     // Detectar y dañar enemigos espadachín en el área
     if (instance_exists(obj_enemy_swordsman)) {
@@ -1370,7 +1371,7 @@ function update_beat_em_up_hitbox(_damage, _reach, _height, _offset_y, _cooldown
             if (instance_exists(id) && !is_invulnerable &&
                 bbox_left < _hb_x2 && bbox_right > _hb_x1 &&
                 bbox_top < _hb_y2 && bbox_bottom > _hb_y1) {
-                take_damage(_damage, id);  // id = enemy, por parámetro _source
+                take_damage(_damage, _player_id);  // _player_id = source del daño
                 if (_kb_hsp != 0 || _kb_vsp != 0) {
                     vel_x = _kb_hsp;
                     vel_y = _kb_vsp;
@@ -1385,7 +1386,7 @@ function update_beat_em_up_hitbox(_damage, _reach, _height, _offset_y, _cooldown
             if (instance_exists(id) && !is_invulnerable &&
                 bbox_left < _hb_x2 && bbox_right > _hb_x1 &&
                 bbox_top < _hb_y2 && bbox_bottom > _hb_y1) {
-                take_damage(_damage, id);  // id = enemy, por parámetro _source
+                take_damage(_damage, _player_id);  // _player_id = source del daño
                 if (_kb_hsp != 0 || _kb_vsp != 0) {
                     vel_x = _kb_hsp;
                     vel_y = _kb_vsp;
