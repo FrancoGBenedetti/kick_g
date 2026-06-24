@@ -329,6 +329,7 @@ if (beat_em_up_attack_active) {
     beat_em_up_attack_timer--;
     if (beat_em_up_attack_timer <= 0) {
         beat_em_up_attack_active = false;
+        beat_em_up_hitbox_visible = false;  // apagar debug visual
     }
 }
 

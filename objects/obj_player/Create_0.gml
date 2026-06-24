@@ -192,8 +192,26 @@ beat_em_up_attack_active  = false;           // true mientras hitbox está activ
 beat_em_up_attack_timer   = 0;               // cuenta regresiva de hitbox
 beat_em_up_cooldown_timer = 0;               // cooldown global
 
+// ── Carga de energía para golpe fuerte ────────────────────
+// Sistema de carga: 6 golpes ligeros o 1 parry desbloquea heavy punch
+beat_heavy_charge         = 0;               // carga actual (0 a 6)
+beat_heavy_charge_max     = 6;               // carga necesaria
+beat_heavy_unlocked       = false;           // true cuando carga es máxima
+beat_light_hit_charge_gain = 1;              // carga por golpe ligero exitoso
+beat_parry_charge_gain     = 1;              // carga por parry exitoso
+beat_uppercut_enabled     = false;           // TEMP: desactivar uppercut por ahora
+
+// ── Debug visual: hitbox del ataque Beat 'em Up ───────────
+// Almacena las coordenadas del último hitbox para debug drawing
+beat_em_up_hitbox_x1      = 0;
+beat_em_up_hitbox_y1      = 0;
+beat_em_up_hitbox_x2      = 0;
+beat_em_up_hitbox_y2      = 0;
+beat_em_up_hitbox_visible = false;           // true si debe dibujarse
+
 // ── Enemigos durante Beat 'em Up ─────────────────────────
 beat_em_up_enemy_iframes  = 0;               // iframes cortos para combos rápidos
+beat_em_up_enemies_hit    = ds_list_create(); // rastrear enemigos golpeados en este ataque
 
 // ══════════════════════════════════════════════════════════
 // ROLL DODGE — Evasión defensiva estilo Dark Souls
@@ -1130,6 +1148,16 @@ take_damage = function(_amount, _source) {
         // ── Energía por parry ─────────────────────────────
         gain_super_energy(parry_energy_gain);
 
+        // ── Carga para golpe fuerte (Beat 'em Up) ─────────
+        beat_heavy_charge += beat_parry_charge_gain;
+        beat_heavy_charge = clamp(beat_heavy_charge, 0, beat_heavy_charge_max);
+        if (beat_heavy_charge >= beat_heavy_charge_max) {
+            beat_heavy_unlocked = true;
+            show_debug_message("[BEAT-CHARGE] HEAVY READY (parry) - charge = " + string(beat_heavy_charge));
+        } else {
+            show_debug_message("[BEAT-CHARGE] +1 parry - charge = " + string(beat_heavy_charge) + "/" + string(beat_heavy_charge_max));
+        }
+
         // ── Ventana de contraataque ───────────────────────
         // Se abre internamente aunque ability_counterattack = false.
         // El gate abajo limpia can_counterattack si la habilidad no está habilitada.
@@ -1352,6 +1380,7 @@ function end_beat_em_up_mode() {
     beat_em_up_attack_active = false;
     beat_em_up_attack_type = "";
     combat_mode = "normal";
+    beat_em_up_hitbox_visible = false;  // limpiar debug visual
     show_debug_message("[BEAT-EM-UP] Modo desactivado");
 }
 
@@ -1370,7 +1399,8 @@ function update_beat_em_up_mode() {
     var _ranged_pressed = global.inp.ranged_pressed;  // X key (normalmente arco)
 
     // ── Uppercut: Up + X ─────────────────────────────────────
-    if (_up && _ranged_pressed) {
+    // TEMP: Desactivado hasta que se implemente nuevas combinaciones
+    if (_up && _ranged_pressed && beat_uppercut_enabled) {
         player_start_beat_uppercut();
         show_debug_message("[BEAT-UPPERCUT INPUT] Up + X pressed");
         return;
@@ -1405,6 +1435,9 @@ function player_start_beat_punch() {
     beat_em_up_attack_timer = beat_punch_active_duration;
     beat_em_up_cooldown_timer = beat_punch_cooldown;
 
+    // Limpiar enemigos golpeados en este ataque
+    ds_list_clear(beat_em_up_enemies_hit);
+
     // Aplicar damage a enemigos cercanos
     update_beat_em_up_hitbox(beat_punch_damage, beat_punch_reach, beat_punch_height,
                               beat_punch_offset_y, beat_punch_cooldown);
@@ -1412,18 +1445,31 @@ function player_start_beat_punch() {
 }
 
 /// @function player_start_beat_heavy()
-/// @description Inicia un Heavy Punch
+/// @description Inicia un Heavy Punch — solo si está desbloqueado
 function player_start_beat_heavy() {
+    // Verificar si está desbloqueado
+    if (!beat_heavy_unlocked) {
+        show_debug_message("[BEAT-HEAVY] LOCKED - charge = " + string(beat_heavy_charge) + "/" + string(beat_heavy_charge_max));
+        return;
+    }
+
     beat_em_up_attack_type = "heavy";
     beat_em_up_attack_active = true;
     beat_em_up_attack_timer = beat_heavy_active_duration;
     beat_em_up_cooldown_timer = beat_heavy_cooldown;
 
+    // Limpiar enemigos golpeados en este ataque
+    ds_list_clear(beat_em_up_enemies_hit);
+
     // Aplicar damage a enemigos con knockback mayor
     update_beat_em_up_hitbox(beat_heavy_damage, beat_heavy_reach, beat_heavy_height,
                               beat_heavy_offset_y, beat_heavy_cooldown,
                               beat_heavy_knockback_hsp, beat_heavy_knockback_vsp);
-    show_debug_message("[BEAT-HEAVY] Golpe fuerte");
+
+    // Consumir carga
+    beat_heavy_charge = 0;
+    beat_heavy_unlocked = false;
+    show_debug_message("[BEAT-HEAVY] USED - charge reset");
 }
 
 /// @function player_start_beat_uppercut()
@@ -1461,12 +1507,43 @@ function update_beat_em_up_hitbox(_damage, _reach, _height, _offset_y, _cooldown
     var _hb_y2 = _hb_y + _height / 2;
     var _player_id = id;  // guardar referencia al player para usar en with statement
 
+    // ── DEBUG: guardar hitbox para visualización ─────────────
+    beat_em_up_hitbox_x1      = _hb_x1;
+    beat_em_up_hitbox_y1      = _hb_y1;
+    beat_em_up_hitbox_x2      = _hb_x2;
+    beat_em_up_hitbox_y2      = _hb_y2;
+    beat_em_up_hitbox_visible = true;
+
+    // ── CARGA DE ENERGÍA: solo para golpes ligeros ──────────
+    // Es un golpe ligero si beat_em_up_attack_type == "punch"
+    var _is_light_punch = (beat_em_up_attack_type == "punch");
+
     // Detectar y dañar enemigos espadachín en el área
     if (instance_exists(obj_enemy_swordsman)) {
         with (obj_enemy_swordsman) {
             if (instance_exists(id) && !is_invulnerable &&
                 bbox_left < _hb_x2 && bbox_right > _hb_x1 &&
                 bbox_top < _hb_y2 && bbox_bottom > _hb_y1) {
+                // Verificar si ya fue golpeado en este ataque
+                var _already_hit = ds_list_find_index(_player_id.beat_em_up_enemies_hit, id) != -1;
+
+                if (!_already_hit) {
+                    // Primer hit a este enemigo en este ataque
+                    ds_list_add(_player_id.beat_em_up_enemies_hit, id);
+
+                    // Cargar energía solo si es golpe ligero
+                    if (_is_light_punch) {
+                        _player_id.beat_heavy_charge += _player_id.beat_light_hit_charge_gain;
+                        _player_id.beat_heavy_charge = clamp(_player_id.beat_heavy_charge, 0, _player_id.beat_heavy_charge_max);
+                        if (_player_id.beat_heavy_charge >= _player_id.beat_heavy_charge_max) {
+                            _player_id.beat_heavy_unlocked = true;
+                            show_debug_message("[BEAT-CHARGE] HEAVY READY - charge = " + string(_player_id.beat_heavy_charge));
+                        } else {
+                            show_debug_message("[BEAT-CHARGE] +1 punch - charge = " + string(_player_id.beat_heavy_charge) + "/" + string(_player_id.beat_heavy_charge_max));
+                        }
+                    }
+                }
+
                 take_damage(_damage, _player_id);  // _player_id = source del daño
                 if (_kb_hsp != 0 || _kb_vsp != 0) {
                     vel_x = _kb_hsp;
@@ -1482,6 +1559,26 @@ function update_beat_em_up_hitbox(_damage, _reach, _height, _offset_y, _cooldown
             if (instance_exists(id) && !is_invulnerable &&
                 bbox_left < _hb_x2 && bbox_right > _hb_x1 &&
                 bbox_top < _hb_y2 && bbox_bottom > _hb_y1) {
+                // Verificar si ya fue golpeado en este ataque
+                var _already_hit = ds_list_find_index(_player_id.beat_em_up_enemies_hit, id) != -1;
+
+                if (!_already_hit) {
+                    // Primer hit a este enemigo en este ataque
+                    ds_list_add(_player_id.beat_em_up_enemies_hit, id);
+
+                    // Cargar energía solo si es golpe ligero
+                    if (_is_light_punch) {
+                        _player_id.beat_heavy_charge += _player_id.beat_light_hit_charge_gain;
+                        _player_id.beat_heavy_charge = clamp(_player_id.beat_heavy_charge, 0, _player_id.beat_heavy_charge_max);
+                        if (_player_id.beat_heavy_charge >= _player_id.beat_heavy_charge_max) {
+                            _player_id.beat_heavy_unlocked = true;
+                            show_debug_message("[BEAT-CHARGE] HEAVY READY - charge = " + string(_player_id.beat_heavy_charge));
+                        } else {
+                            show_debug_message("[BEAT-CHARGE] +1 punch - charge = " + string(_player_id.beat_heavy_charge) + "/" + string(_player_id.beat_heavy_charge_max));
+                        }
+                    }
+                }
+
                 take_damage(_damage, _player_id);  // _player_id = source del daño
                 if (_kb_hsp != 0 || _kb_vsp != 0) {
                     vel_x = _kb_hsp;
@@ -1490,5 +1587,43 @@ function update_beat_em_up_hitbox(_damage, _reach, _height, _offset_y, _cooldown
             }
         }
     }
+}
+;
+
+/// @function debug_draw_beat_em_up_hitbox()
+/// @description Dibuja el hitbox rojo del ataque Beat 'em Up activo para debug
+function debug_draw_beat_em_up_hitbox() {
+    // Solo dibujar si hay hitbox activo
+    if (!beat_em_up_hitbox_visible) return;
+
+    var _x1 = beat_em_up_hitbox_x1;
+    var _y1 = beat_em_up_hitbox_y1;
+    var _x2 = beat_em_up_hitbox_x2;
+    var _y2 = beat_em_up_hitbox_y2;
+
+    // Guardar estado de draw anterior
+    var _prev_alpha = draw_get_alpha();
+    var _prev_color = draw_get_color();
+
+    // ── Relleno rojo semitransparente ────────────────────────
+    draw_set_alpha(0.35);
+    draw_set_color(c_red);
+    draw_rectangle(_x1, _y1, _x2, _y2, false);
+
+    // ── Borde rojo sólido ────────────────────────────────────
+    draw_set_alpha(1.0);
+    draw_set_color(c_red);
+    draw_rectangle(_x1, _y1, _x2, _y2, true);
+
+    // ── Debug text ───────────────────────────────────────────
+    draw_set_color(c_red);
+    draw_set_alpha(1.0);
+    var _cx = (_x1 + _x2) / 2;
+    var _cy = (_y1 + _y2) / 2;
+    draw_text(_cx, _cy, "BEAT: " + beat_em_up_attack_type);
+
+    // Restaurar estado anterior
+    draw_set_alpha(_prev_alpha);
+    draw_set_color(_prev_color);
 }
 ;

@@ -65,6 +65,14 @@ if (parry_popup_timer > 0) {
 }
 
 // ══════════════════════════════════════════════════════════
+// 1b2. DEBUG BEAT 'EM UP HITBOX — Rectángulo rojo
+// Muestra el hitbox real del ataque Beat 'em Up (cuando está activo)
+// ══════════════════════════════════════════════════════════
+if (beat_em_up_active) {
+    debug_draw_beat_em_up_hitbox();
+}
+
+// ══════════════════════════════════════════════════════════
 // 1c. DEBUG KNOCKBACK DEL JUGADOR
 // Toggle: global.debug_knockback (activar en obj_time_manager Create o en runtime)
 // ══════════════════════════════════════════════════════════
@@ -949,10 +957,17 @@ if (variable_global_exists("debug_dev") && global.debug_dev) {
         draw_text(_dbg_x, _dbg_y + _beat_y_base + 36, _input_str);
     }
 
+    // ── BEAT 'EM UP CHARGE DEBUG ───────────────────────────
+    draw_set_color(beat_heavy_unlocked ? c_lime : c_blue);
+    var _charge_y = _dbg_y + 96;
+    draw_text(_dbg_x, _charge_y, "CHARGE: " + string(beat_heavy_charge) + "/" + string(beat_heavy_charge_max));
+    draw_text(_dbg_x, _charge_y + 12, "  unlocked=" + string(beat_heavy_unlocked));
+    draw_text(_dbg_x, _charge_y + 24, "  light_gain=" + string(beat_light_hit_charge_gain) + " parry_gain=" + string(beat_parry_charge_gain));
+
     // ── SLOW MOTION DEBUG ──────────────────────────────────
     if (global.slowmo_active) {
         draw_set_color(c_cyan);
-        var _slow_y = _dbg_y + (beat_em_up_active ? 168 : 96);
+        var _slow_y = _dbg_y + (beat_em_up_active ? 168 : 132);
         draw_text(_dbg_x, _slow_y, "SLOWMO: active=" + string(global.slowmo_active));
         draw_text(_dbg_x, _slow_y + 12, "  timer=" + string(global.slowmo_timer) + "f");
         draw_text(_dbg_x, _slow_y + 24, "  scale=" + string_format(global.slowmo_scale_temporary, 0, 2));

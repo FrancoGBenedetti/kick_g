@@ -2,9 +2,43 @@
 // OBJ_PLAYER — Draw GUI
 //
 // Dibuja elementos del HUD en screen-space (fijos en pantalla).
+// - Barra de carga de golpe fuerte (arriba a la derecha, siempre)
 // - Barra de Beat 'em Up Mode (debajo del HP HUD)
 // - Información de dificultad (cuando global.debug_difficulty = true)
 // ══════════════════════════════════════════════════════════
+
+// ── Carga de golpe fuerte (HEAVY) — Barra azul arriba a la derecha ────
+// Siempre visible, se llena con golpes ligeros y parry
+var _heavy_bar_w = 120;
+var _heavy_bar_h = 10;
+var _heavy_bar_x = display_get_gui_width() - _heavy_bar_w - 24;
+var _heavy_bar_y = 24;
+var _heavy_pct = beat_heavy_charge / beat_heavy_charge_max;
+
+// ── Fondo negro ─────────────────────────────────────────────
+draw_set_color(c_black);
+draw_rectangle(_heavy_bar_x, _heavy_bar_y, _heavy_bar_x + _heavy_bar_w, _heavy_bar_y + _heavy_bar_h, false);
+
+// ── Barra azul de progreso ──────────────────────────────────
+var _bar_color = beat_heavy_unlocked ? c_lime : c_blue;  // verde si está listo, azul si cargando
+draw_set_color(_bar_color);
+draw_rectangle(_heavy_bar_x, _heavy_bar_y, _heavy_bar_x + (_heavy_bar_w * _heavy_pct), _heavy_bar_y + _heavy_bar_h, false);
+
+// ── Borde blanco/verde ───────────────────────────────────────
+draw_set_color(beat_heavy_unlocked ? c_lime : c_white);
+draw_rectangle(_heavy_bar_x, _heavy_bar_y, _heavy_bar_x + _heavy_bar_w, _heavy_bar_y + _heavy_bar_h, true);
+
+// ── Etiqueta "HEAVY" ─────────────────────────────────────────
+draw_set_color(beat_heavy_unlocked ? c_lime : c_white);
+draw_set_halign(fa_right);
+draw_set_valign(fa_middle);
+draw_text(_heavy_bar_x - 8, _heavy_bar_y + _heavy_bar_h / 2, "HEAVY");
+
+// ── Estado visual si está listo ──────────────────────────────
+if (beat_heavy_unlocked) {
+    draw_set_color(c_lime);
+    draw_text(_heavy_bar_x + _heavy_bar_w / 2, _heavy_bar_y + _heavy_bar_h + 8, "READY");
+}
 
 // ── Beat 'em Up Mode — Barra de duración en HUD ──────────────
 if (beat_em_up_active) {
