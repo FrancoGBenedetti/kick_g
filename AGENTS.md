@@ -67,6 +67,11 @@ La direccion tecnica debe favorecer PC, Nintendo Switch y gamepad desde temprano
 - Las props decorativas grandes (`sofas`, mesas, cuadros, chimeneas, gabinetes, etc.) deben ir en Asset Layers/Sprite Layers, no en Tile Layers.
 - Mantener Tile Layers solo para tiles repetibles: pisos, alfombras, paredes y tilesets modulares.
 - En `RoomBigFloor`, la capa `Props` es la capa para props grandes; debe quedar sobre piso/alfombra y bajo foreground/instancias.
+- No crear TileSets para sprites decorativos individuales grandes, aunque vengan desde `Downloads`.
+- Importar props grandes como sprites con nombre `spr_prop_*` y parent virtual `folders/Sprites/Tiles/Props.yy`.
+- Colocar props en el room arrastrando el sprite a la capa `Props`; no pintarlas con tiles.
+- Si una prop necesita cambiar de tamano en una etapa, escalar la instancia/asset dentro del room, no cambiar el tamano del sprite base.
+- Si existe una prop como TileSet gigante de una sola pieza, reemplazar ese flujo por el sprite original en la capa `Props`.
 
 Mantener la separacion:
 
