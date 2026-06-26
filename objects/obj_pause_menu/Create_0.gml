@@ -6,7 +6,7 @@ remap_index = -1;
 
 menu_items = [
     "Resumir",
-    "Configurar controller",
+    "Configurar control",
 ];
 
 controller_actions = [

@@ -17,9 +17,38 @@ if (menu_mode == "main") {
         draw_set_color(_i == menu_index ? c_yellow : c_white);
         draw_text(_gw * 0.5, _start_y + _i * 44, menu_items[_i]);
     }
+} else if (menu_mode == "stage") {
+    draw_set_color(c_white);
+    draw_text(_gw * 0.5, _gh * 0.16, "ETAPA A JUGAR");
+
+    var _stage = stage_items[menu_index];
+    var _preview = _stage.preview;
+    var _box_w = min(_gw * 0.72, 760);
+    var _box_h = min(_gh * 0.48, 420);
+    var _box_x = (_gw - _box_w) * 0.5;
+    var _box_y = _gh * 0.24;
+
+    draw_set_color(make_color_rgb(18, 18, 22));
+    draw_rectangle(_box_x - 4, _box_y - 4, _box_x + _box_w + 4, _box_y + _box_h + 4, false);
+
+    var _scale = min(_box_w / sprite_get_width(_preview), _box_h / sprite_get_height(_preview));
+    var _draw_w = sprite_get_width(_preview) * _scale;
+    var _draw_h = sprite_get_height(_preview) * _scale;
+    draw_sprite_ext(
+        _preview, 0,
+        _box_x + (_box_w - _draw_w) * 0.5,
+        _box_y + (_box_h - _draw_h) * 0.5,
+        _scale, _scale, 0, c_white, 1
+    );
+
+    var _stage_y = _box_y + _box_h + 48;
+    for (var _s = 0; _s < array_length(stage_items); _s++) {
+        draw_set_color(_s == menu_index ? c_yellow : c_white);
+        draw_text(_gw * 0.5, _stage_y + _s * 44, stage_items[_s].label);
+    }
 } else {
     draw_set_color(c_white);
-    draw_text(_gw * 0.5, _gh * 0.30, "CONFIGURAR CONTROLLER");
+    draw_text(_gw * 0.5, _gh * 0.30, "CONFIGURAR CONTROL");
 
     var _slot = global.keybinds.gp_slot;
     var _connected = gamepad_is_connected(_slot);

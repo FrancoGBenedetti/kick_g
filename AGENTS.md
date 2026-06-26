@@ -61,8 +61,12 @@ La direccion tecnica debe favorecer PC, Nintendo Switch y gamepad desde temprano
 - Un room representa una etapa o espacio con sus propias mecanicas.
 - El menu principal tambien es un room.
 - El mapa del juego debe ser otro room.
+- Los recursos de room deben usar nombres tecnicos sin espacios (`RoomBigFloor`); el texto visible puede usar nombres de diseno (`Big floor`).
 - No usar cambio de room para una pausa in-game si se necesita conservar el estado exacto de la etapa; usar overlay/manager dentro del room activo.
 - Cambiar de room para menus principales, mapas, hubs o transiciones reales esta bien.
+- Las props decorativas grandes (`sofas`, mesas, cuadros, chimeneas, gabinetes, etc.) deben ir en Asset Layers/Sprite Layers, no en Tile Layers.
+- Mantener Tile Layers solo para tiles repetibles: pisos, alfombras, paredes y tilesets modulares.
+- En `RoomBigFloor`, la capa `Props` es la capa para props grandes; debe quedar sobre piso/alfombra y bajo foreground/instancias.
 
 Mantener la separacion:
 

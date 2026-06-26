@@ -5,8 +5,12 @@ menu_mode = "main";
 remap_index = -1;
 
 menu_items = [
-    "Resumir",
-    "Configurar controller",
+    "Etapa a jugar",
+    "Configurar control",
+];
+
+stage_items = [
+    { label: "Big floor", room_id: RoomBigFloor, preview: spr_stage_preview_big_floor },
 ];
 
 controller_actions = [

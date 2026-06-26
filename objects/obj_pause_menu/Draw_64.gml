@@ -22,7 +22,7 @@ if (menu_mode == "main") {
     }
 } else {
     draw_set_color(c_white);
-    draw_text(_gw * 0.5, _gh * 0.30, "CONFIGURAR CONTROLLER");
+    draw_text(_gw * 0.5, _gh * 0.30, "CONFIGURAR CONTROL");
 
     var _slot = global.keybinds.gp_slot;
     var _status = gamepad_is_connected(_slot)
