@@ -27,7 +27,7 @@ La direccion tecnica debe favorecer PC, Nintendo Switch y gamepad desde temprano
 ## Escala Y Arte
 
 - Resolucion logica del gameplay: `640x360`.
-- Room objetivo actual: `3840x1080`.
+- Room objetivo actual (`RoomBigFloor`): `12288x5120`.
 - Viewport objetivo: `1920x1080`.
 - Tiles: `64x64`, sin separacion, margen ni offset.
 - Sprites del jugador: canvas `256x256`.
