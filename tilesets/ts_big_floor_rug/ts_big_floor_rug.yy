@@ -1,14 +1,14 @@
 {
   "$GMTileSet":"v1",
-  "%Name":"ts_big_floor",
+  "%Name":"ts_big_floor_rug",
   "autoTileSets":[],
   "macroPageTiles":{
     "SerialiseHeight":0,
     "SerialiseWidth":0,
     "TileSerialiseData":[],
   },
-  "name":"ts_big_floor",
-  "out_columns":1,
+  "name":"ts_big_floor_rug",
+  "out_columns":19,
   "out_tilehborder":2,
   "out_tilevborder":2,
   "parent":{
@@ -18,8 +18,8 @@
   "resourceType":"GMTileSet",
   "resourceVersion":"2.0",
   "spriteId":{
-    "name":"big_floor",
-    "path":"sprites/big_floor/big_floor.yy",
+    "name":"spr_tiles_big_floor_rug",
+    "path":"sprites/spr_tiles_big_floor_rug/spr_tiles_big_floor_rug.yy",
   },
   "spriteNoExport":false,
   "textureGroupId":{
@@ -28,11 +28,11 @@
   },
   "tileAnimationFrames":[],
   "tileAnimationSpeed":15.0,
-  "tileHeight":1254,
+  "tileHeight":64,
   "tilehsep":0,
   "tilevsep":0,
-  "tileWidth":1254,
+  "tileWidth":64,
   "tilexoff":0,
   "tileyoff":0,
-  "tile_count":2,
+  "tile_count":361,
 }
