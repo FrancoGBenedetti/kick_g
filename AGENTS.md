@@ -134,6 +134,29 @@ Reglas:
 - Hitboxes deben tener owner/team/damage source claro.
 - Preferir scripts/helpers dedicados para rectangulos, sockets, spawn points y calculos repetidos.
 
+## Trampas
+
+- Las trampas deben partir desde `obj_trap_parent`, no desde objetos sueltos con logica duplicada.
+- Separar siempre tres conceptos:
+  - Trigger: cuando se activa (`distancia`, rectangulo, contacto o evento externo).
+  - Reveal: que se ve al activarse (cubierta intacta, rota, caida, salida desde suelo/techo/pared).
+  - Payload: que hace (spawnear enemigo, aplicar dano, empujar, VFX/sonido, o combinaciones).
+- `obj_trap_parent` contiene estados, delay, cooldown/recovery, one-shot/reusable, trigger comun y payload comun.
+- Los hijos definen el tipo espacial y defaults visuales:
+  - `obj_trap_wall_spawn`: enemigo o golpe que sale desde pared.
+  - Futuro `obj_trap_ceiling_drop`: algo cae desde arriba.
+  - Futuro `obj_trap_floor_burst`: algo sale desde abajo.
+  - Futuro `obj_trap_hitbox_only`: no spawnea enemigo, solo golpea/da feedback.
+- Las variables por instancia deben poder cambiarse desde Creation Code del room:
+  - `trigger_mode`, `trigger_range`, `trigger_xoff`, `trigger_yoff`, `trigger_w`, `trigger_h`.
+  - `cover_sprite`, `broken_sprite`, `broken_xoff`, `broken_yoff`, `trap_visual_xscale`, `trap_visual_yscale`, `break_sound`.
+  - `payload_spawn_enemy`, `enemy_object`, `enemy_spawn_xoff`, `enemy_spawn_yoff`, `enemy_spawn_layer`.
+  - `payload_damage`, `damage`, `hitbox_xoff`, `hitbox_yoff`, `hitbox_w`, `hitbox_h`.
+- Si un hijo necesita defaults propios, setearlos antes de `event_inherited()` para que `obj_trap_parent` respete overrides por instancia.
+- Las trampas se colocan en capas `Instances`, no en `Props` ni en Tile Layers.
+- Sprites visuales de trampas usan nombre `spr_trap_*`; no crear TileSets para cubiertas o paneles rompibles.
+- Si una cubierta de trampa queda grande/chica, ajustar `trap_visual_xscale`/`trap_visual_yscale` o la escala de la instancia; no convertirla en TileSet.
+
 ## Camara
 
 - La camara debe mostrar suficiente escenario para leer combate y plataformas.
