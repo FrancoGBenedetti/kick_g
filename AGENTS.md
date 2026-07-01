@@ -157,6 +157,19 @@ Reglas:
 - Sprites visuales de trampas usan nombre `spr_trap_*`; no crear TileSets para cubiertas o paneles rompibles.
 - Si una cubierta de trampa queda grande/chica, ajustar `trap_visual_xscale`/`trap_visual_yscale` o la escala de la instancia; no convertirla en TileSet.
 
+## Hazards
+
+- Separar visual y gameplay: agua/lava/pinchos repetibles se pintan como Tile Layers visuales; la zona que mata o dana va como objeto en `Instances`.
+- `obj_hazard_parent` contiene la logica reusable de zonas peligrosas.
+- Usar hijos/presets como `obj_hazard_water_kill` para defaults de agua letal.
+- Los hazards no deben modificar Tile Layers de colision; son zonas rectangulares independientes configurables por instancia.
+- Variables por instancia esperadas:
+  - `hazard_w`, `hazard_h`, `hazard_xoff`, `hazard_yoff`.
+  - `hazard_kill_player`, `hazard_damage`, `hazard_enabled`.
+  - `hazard_debug_draw`, `hazard_debug_color`.
+- Para ajustar una zona en un room, usar Creation Code de la instancia; no hardcodear medidas de un room dentro del objeto.
+- Cuando el visual este listo, apagar `hazard_debug_draw` y dejar el Tile Layer visual como feedback para el jugador.
+
 ## Camara
 
 - La camara debe mostrar suficiente escenario para leer combate y plataformas.

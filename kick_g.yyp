@@ -76,7 +76,7 @@
   "isEcma":false,
   "LibraryEmitters":[],
   "MetaData":{
-    "IDEVersion":"2024.14.4.222",
+    "IDEVersion":"2026.0.0.16",
   },
   "name":"kick_g",
   "resources":[
@@ -92,6 +92,8 @@
     {"id":{"name":"obj_enemy_sword_hitbox","path":"objects/obj_enemy_sword_hitbox/obj_enemy_sword_hitbox.yy",},},
     {"id":{"name":"obj_enemy_swordsman","path":"objects/obj_enemy_swordsman/obj_enemy_swordsman.yy",},},
     {"id":{"name":"obj_fly_bat_lightning_ball","path":"objects/obj_fly_bat_lightning_ball/obj_fly_bat_lightning_ball.yy",},},
+    {"id":{"name":"obj_hazard_parent","path":"objects/obj_hazard_parent/obj_hazard_parent.yy",},},
+    {"id":{"name":"obj_hazard_water_kill","path":"objects/obj_hazard_water_kill/obj_hazard_water_kill.yy",},},
     {"id":{"name":"obj_input","path":"objects/obj_input/obj_input.yy",},},
     {"id":{"name":"obj_pause_menu","path":"objects/obj_pause_menu/obj_pause_menu.yy",},},
     {"id":{"name":"obj_player_arrow","path":"objects/obj_player_arrow/obj_player_arrow.yy",},},

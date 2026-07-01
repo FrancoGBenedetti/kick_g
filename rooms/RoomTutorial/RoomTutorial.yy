@@ -10,6 +10,8 @@
     {"name":"inst_DA142F1","path":"rooms/RoomTutorial/RoomTutorial.yy",},
     {"name":"inst_7260395F","path":"rooms/RoomTutorial/RoomTutorial.yy",},
     {"name":"inst_1582ED2F","path":"rooms/RoomTutorial/RoomTutorial.yy",},
+    {"name":"inst_17368438","path":"rooms/RoomTutorial/RoomTutorial.yy",},
+    {"name":"inst_497B147E","path":"rooms/RoomTutorial/RoomTutorial.yy",},
   ],
   "isDnd":false,
   "layers":[
@@ -18,6 +20,8 @@
         {"$GMRInstance":"v4","%Name":"inst_DA142F1","colour":4294967295,"frozen":false,"hasCreationCode":false,"ignore":false,"imageIndex":0,"imageSpeed":1.0,"inheritCode":false,"inheritedItemId":null,"inheritItemSettings":false,"isDnd":false,"name":"inst_DA142F1","objectId":{"name":"obj_camera_controller","path":"objects/obj_camera_controller/obj_camera_controller.yy",},"properties":[],"resourceType":"GMRInstance","resourceVersion":"2.0","rotation":0.0,"scaleX":1.0,"scaleY":1.0,"x":0.0,"y":0.0,},
         {"$GMRInstance":"v4","%Name":"inst_7260395F","colour":4294967295,"frozen":false,"hasCreationCode":false,"ignore":false,"imageIndex":0,"imageSpeed":1.0,"inheritCode":false,"inheritedItemId":null,"inheritItemSettings":false,"isDnd":false,"name":"inst_7260395F","objectId":{"name":"obj_input","path":"objects/obj_input/obj_input.yy",},"properties":[],"resourceType":"GMRInstance","resourceVersion":"2.0","rotation":0.0,"scaleX":1.0,"scaleY":1.0,"x":0.0,"y":0.0,},
         {"$GMRInstance":"v4","%Name":"inst_1582ED2F","colour":4294967295,"frozen":false,"hasCreationCode":false,"ignore":false,"imageIndex":0,"imageSpeed":1.0,"inheritCode":false,"inheritedItemId":null,"inheritItemSettings":false,"isDnd":false,"name":"inst_1582ED2F","objectId":{"name":"obj_time_manager","path":"objects/obj_time_manager/obj_time_manager.yy",},"properties":[],"resourceType":"GMRInstance","resourceVersion":"2.0","rotation":0.0,"scaleX":1.0,"scaleY":1.0,"x":0.0,"y":0.0,},
+        {"$GMRInstance":"v4","%Name":"inst_17368438","colour":4294967295,"frozen":false,"hasCreationCode":false,"ignore":false,"imageIndex":0,"imageSpeed":1.0,"inheritCode":false,"inheritedItemId":null,"inheritItemSettings":false,"isDnd":false,"name":"inst_17368438","objectId":{"name":"obj_enemy_swordsman","path":"objects/obj_enemy_swordsman/obj_enemy_swordsman.yy",},"properties":[],"resourceType":"GMRInstance","resourceVersion":"2.0","rotation":0.0,"scaleX":1.0,"scaleY":1.0,"x":3552.0,"y":1568.0,},
+        {"$GMRInstance":"v4","%Name":"inst_497B147E","colour":4294967295,"frozen":false,"hasCreationCode":true,"ignore":false,"imageIndex":0,"imageSpeed":1.0,"inheritCode":false,"inheritedItemId":null,"inheritItemSettings":false,"isDnd":false,"name":"inst_497B147E","objectId":{"name":"obj_hazard_water_kill","path":"objects/obj_hazard_water_kill/obj_hazard_water_kill.yy",},"properties":[],"resourceType":"GMRInstance","resourceVersion":"2.0","rotation":0.0,"scaleX":49.0,"scaleY":1.0,"x":4640.0,"y":1312.0,},
       ],"layers":[],"name":"Instances_1","properties":[],"resourceType":"GMRInstanceLayer","resourceVersion":"2.0","userdefinedDepth":false,"visible":true,},
     {"$GMRTileLayer":"","%Name":"Tiles_1","depth":100,"effectEnabled":true,"effectType":null,"gridX":32,"gridY":32,"hierarchyFrozen":false,"inheritLayerDepth":false,"inheritLayerSettings":false,"inheritSubLayers":true,"inheritVisibility":true,"layers":[],"name":"Tiles_1","properties":[],"resourceType":"GMRTileLayer","resourceVersion":"2.0","tiles":{"SerialiseHeight":68,"SerialiseWidth":469,"TileCompressedData":[
           -202,-2147483648,1,83,-33,-2147483648,1,67,-434,-2147483648,1,99,-33,-2147483648,1,83,-434,-2147483648,
@@ -179,7 +183,7 @@
           -2147483648,-6,0,-18,-2147483648,1,0,-69,-2147483648,-2,2,-184,-2147483648,1,1,-34,-2147483648,-4,0,
           -2,-2147483648,-2,0,-15,-2147483648,1,1,-21,-2147483648,1,1,-23,-2147483648,1,1,-18,-2147483648,2,2,
           -2147483648,-3,1,-2,-2147483648,-3,1,-27,-2147483648,1,1,-29,-2147483648,-4,0,-87,-2147483648,-2,2,-186,
-          -2147483648,1,1,-34,-2147483648,-5,0,3,-2147483648,0,0,-15,-2147483648,1,1,-21,-2147483648,1,1,-23,2,
+          -2147483648,1,1,-34,-2147483648,-5,0,3,-2147483648,0,0,-15,-2147483648,1,1,-21,-2147483648,1,1,-23,0,
           1,1,-18,-2147483648,1,2,-9,1,-27,-2147483648,1,1,-43,-2147483648,2,0,-2147483648,-7,0,-67,-2147483648,
           -2,2,-187,-2147483648,1,1,-32,-2147483648,-7,0,3,-2147483648,0,0,-14,-2147483648,2,0,1,-64,-2147483648,
           2,2,1,-6,-2147483648,-2,1,-27,-2147483648,1,1,-37,-2147483648,-16,0,-64,-2147483648,-2,2,-189,-2147483648,
