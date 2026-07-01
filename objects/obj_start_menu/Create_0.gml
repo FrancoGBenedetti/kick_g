@@ -11,6 +11,8 @@ menu_items = [
 
 stage_items = [
     { label: "Big floor", room_id: RoomBigFloor, preview: spr_stage_preview_big_floor },
+	{ label: "Room Tutorial", room_id: RoomTutorial, preview: spr_stage_preview_big_floor },
+	{ label: "Room Skeleton", room_id: Room1, preview: spr_stage_preview_big_floor },
 ];
 
 controller_actions = [

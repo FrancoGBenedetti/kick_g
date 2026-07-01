@@ -32,6 +32,16 @@ if (keyboard_check_pressed(ord("Y"))) {
     show_debug_message("[DEBUG VISUAL] " + (global.debug_collision_view ? "ON" : "OFF"));
 }
 
+// ── I — Toggle collision tiles visible/invisible ──────────────
+if (keyboard_check_pressed(ord("I"))) {
+    var _layer = layer_get_id(COLLISION_LAYER);
+    if (_layer != -1) {
+        var _visible = !layer_get_visible(_layer);
+        layer_set_visible(_layer, _visible);
+        show_debug_message("[COLLISION TILES] " + (_visible ? "VISIBLE" : "INVISIBLE"));
+    }
+}
+
 // ── E — Easy ─────────────────────────────────────────────────
 if (keyboard_check_pressed(ord("E"))) {
     set_difficulty("easy");

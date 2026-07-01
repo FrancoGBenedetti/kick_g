@@ -16,7 +16,8 @@ base_image_speed = 0.2;
 // Aplicar multiplicador de testing (global.enemy_test_hp_multiplier)
 // Default: max_hp = 3, con multiplicador x2 = 6
 var _base_hp = 3;
-max_hp = ceil(_base_hp * global.enemy_test_hp_multiplier);
+var _hp_mult = variable_global_exists("enemy_test_hp_multiplier") ? global.enemy_test_hp_multiplier : 1.0;
+max_hp = ceil(_base_hp * _hp_mult);
 hp     = max_hp;
 
 // ── Flags de IA ───────────────────────────────────────────
