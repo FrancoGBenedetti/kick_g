@@ -170,6 +170,26 @@ Reglas:
 - Para ajustar una zona en un room, usar Creation Code de la instancia; no hardcodear medidas de un room dentro del objeto.
 - Cuando el visual este listo, apagar `hazard_debug_draw` y dejar el Tile Layer visual como feedback para el jugador.
 
+## Solidos Dinamicos Y Puentes
+
+- La colision base de actores debe consultar `level_solid_at`, no `tile_solid_at` directamente, para combinar Tile Layers solidos con objetos dinamicos.
+- `obj_dynamic_solid_parent` es la base para plataformas/puentes que activan colision rectangular en runtime.
+- Usar `obj_pivot_bridge` para puentes levadizos activados por flecha.
+- En `obj_pivot_bridge`, `x/y` es el pivote anclado al escenario.
+- El puente debe colisionar durante todos sus estados; cerrado usa colision tipo capsula/segmento sobre toda la tabla, abierto queda como plataforma horizontal.
+- Cuando una flecha del jugador golpea el target, el puente rota hacia `bridge_open_angle`; la colision sigue la tabla durante la rotacion.
+- Los proyectiles deben revisar targets interactivos antes de destruirse contra tiles, para que una flecha pueda activar un target pegado a pared.
+- Variables por instancia esperadas:
+  - `bridge_sprite`, `bridge_side`, `bridge_length`, `bridge_thickness`.
+  - `bridge_visual_yscale`, `bridge_visual_yoff`.
+  - `bridge_closed_angle`, `bridge_open_angle`, `bridge_rotate_speed`.
+  - `target_radius`, `bridge_collision_padding`, `bridge_debug_draw`.
+- `bridge_side = 1` abre hacia la derecha; `bridge_side = -1` invierte el puente para abrir hacia la izquierda.
+- `bridge_length` es el largo jugable y visual; el sprite se escala proporcionalmente a ese largo para mantener dibujo y colision sincronizados.
+- No editar el tamano del PNG base para ajustar una instancia de puente; usar `bridge_length`, `bridge_visual_yscale`, `bridge_thickness` y `bridge_collision_padding`.
+- Si el puente cerrado se vuelve facil de escalar por la colision inclinada, ajustar `bridge_closed_angle`, `bridge_thickness` o la geometria alrededor del pivote.
+- Los actores prueban izquierda/centro/derecha en colision horizontal para detectar solidos dinamicos finos o inclinados.
+
 ## Camara
 
 - La camara debe mostrar suficiente escenario para leer combate y plataformas.

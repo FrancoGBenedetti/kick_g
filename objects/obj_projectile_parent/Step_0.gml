@@ -41,6 +41,8 @@ if (vel_x != 0) {
     repeat (ceil(abs(vel_x))) {
         x += _hstep;
 
+        if (projectile_try_interactive_hit()) exit;
+
         // Colisión con tile sólido
         if (tile_solid_at(collision_map, x, y)) {
             on_hit(noone);
@@ -74,6 +76,8 @@ if (vel_y != 0) {
     var _vstep = sign(vel_y);
     repeat (ceil(abs(vel_y))) {
         y += _vstep;
+
+        if (projectile_try_interactive_hit()) exit;
 
         if (tile_solid_at(collision_map, x, y)) {
             on_hit(noone);

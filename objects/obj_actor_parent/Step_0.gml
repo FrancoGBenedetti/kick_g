@@ -38,6 +38,8 @@ var _PROBE_STEP = 28;
 //
 // SOLUCIÓN: escanear desde col_top+1 hasta col_bottom-1 en pasos
 // de 28px, garantizando cobertura total contra tiles de ≥29px.
+// Se prueba izquierda, centro y derecha para sólidos finos/inclinados
+// como puentes dinámicos.
 if (move_x != 0) {
     var _hdir   = sign(move_x);
     var _py_top = y + col_top    + 1;
@@ -50,8 +52,9 @@ if (move_x != 0) {
 
         // Escanear altura completa
         while (_py <= _py_bot) {
-            if (tile_solid_at(collision_map, _nx + col_left,  _py) ||
-                tile_solid_at(collision_map, _nx + col_right, _py)) {
+            if (level_solid_at(collision_map, _nx + col_left,  _py) ||
+                level_solid_at(collision_map, _nx,             _py) ||
+                level_solid_at(collision_map, _nx + col_right, _py)) {
                 _blocked = true;
                 break;
             }
@@ -91,9 +94,9 @@ if (move_y != 0) {
         var _ny      = y + _vdir;
         var _check_y = _ny + (_vdir > 0 ? col_bottom : col_top);
 
-        if (!tile_solid_at(collision_map, _cx_l, _check_y) &&
-            !tile_solid_at(collision_map, _cx_m, _check_y) &&
-            !tile_solid_at(collision_map, _cx_r, _check_y)) {
+        if (!level_solid_at(collision_map, _cx_l, _check_y) &&
+            !level_solid_at(collision_map, _cx_m, _check_y) &&
+            !level_solid_at(collision_map, _cx_r, _check_y)) {
             y = _ny;
         } else {
             if (_vdir > 0) isGrounded = true;
@@ -133,17 +136,18 @@ if (_pre_vy < 0 && move_y == 0) {
 
             // ¿Está el techo despejado en esta nueva X?
             var _ceil_ok =
-                !tile_solid_at(collision_map, _tx + col_left  + 1, _ceil_check_y) &&
-                !tile_solid_at(collision_map, _tx,                  _ceil_check_y) &&
-                !tile_solid_at(collision_map, _tx + col_right - 1, _ceil_check_y);
+                !level_solid_at(collision_map, _tx + col_left  + 1, _ceil_check_y) &&
+                !level_solid_at(collision_map, _tx,                  _ceil_check_y) &&
+                !level_solid_at(collision_map, _tx + col_right - 1, _ceil_check_y);
 
             if (_ceil_ok) {
                 // Verificar que moverse a _tx no meta al jugador en una pared
                 var _wall_ok = true;
                 var _scan_y  = y + col_top + 1;
                 while (_scan_y <= y + col_bottom - 1) {
-                    if (tile_solid_at(collision_map, _tx + col_left,  _scan_y) ||
-                        tile_solid_at(collision_map, _tx + col_right, _scan_y)) {
+                    if (level_solid_at(collision_map, _tx + col_left,  _scan_y) ||
+                        level_solid_at(collision_map, _tx,             _scan_y) ||
+                        level_solid_at(collision_map, _tx + col_right, _scan_y)) {
                         _wall_ok = false;
                         break;
                     }
@@ -180,8 +184,8 @@ var _wall_r  = false;
 
 var _wpy = _wpy_top;
 while (_wpy <= _wpy_bot) {
-    if (!_wall_l && tile_solid_at(collision_map, x + col_left  - 1, _wpy)) _wall_l = true;
-    if (!_wall_r && tile_solid_at(collision_map, x + col_right + 1, _wpy)) _wall_r = true;
+    if (!_wall_l && level_solid_at(collision_map, x + col_left  - 1, _wpy)) _wall_l = true;
+    if (!_wall_r && level_solid_at(collision_map, x + col_right + 1, _wpy)) _wall_r = true;
     if (_wall_l && _wall_r) break;
     _wpy = (_wpy >= _wpy_bot) ? _wpy_bot + 1 : min(_wpy + _PROBE_STEP, _wpy_bot);
 }

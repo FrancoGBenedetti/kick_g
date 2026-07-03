@@ -108,3 +108,30 @@ can_be_parried            = false;
 can_be_blocked            = false;
 reflect_on_parry          = false;
 is_unbreakable            = false;
+
+// ── Interactivos golpeados por proyectiles ────────────────
+// Corre durante el pixel-step, antes de la colisión con tiles.
+// Esto permite que una flecha active un target pegado a una pared
+// antes de destruirse contra esa pared.
+projectile_try_interactive_hit = function() {
+    if (object_index != obj_player_arrow) return false;
+
+    var _count = instance_number(obj_pivot_bridge);
+    for (var _i = 0; _i < _count; _i++) {
+        var _bridge = instance_find(obj_pivot_bridge, _i);
+        if (!instance_exists(_bridge)) continue;
+        if (_bridge.bridge_state != _bridge.BRIDGE_CLOSED) continue;
+
+        var _range = _bridge.target_radius + hit_radius + 12;
+        if (point_distance(x, y, _bridge.target_x, _bridge.target_y) <= _range) {
+            with (_bridge) {
+                bridge_trigger();
+            }
+            on_hit(_bridge);
+            instance_destroy();
+            return true;
+        }
+    }
+
+    return false;
+};
