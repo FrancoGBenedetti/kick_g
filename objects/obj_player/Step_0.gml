@@ -1067,7 +1067,7 @@ if (player_state == PSTATE.DASH_ATTACK) {
         var _hb = instance_create_layer(
             x + sword_hitbox_x * facing,
             y + sword_hitbox_y,
-            "Instances_2",
+            (layer_get_id("Instances_2") != -1 ? "Instances_2" : layer_get_name(layer)),
             obj_sword_hitbox
         );
         _hb.owner              = id;
@@ -1097,7 +1097,7 @@ if (player_state == PSTATE.COUNTER_ATTACK) {
         sword_hitbox_id = instance_create_layer(
             x + facing * sword_hitbox_x,
             y + sword_hitbox_y,
-            "Instances_2",
+            (layer_get_id("Instances_2") != -1 ? "Instances_2" : layer_get_name(layer)),
             obj_sword_hitbox
         );
         with (sword_hitbox_id) {

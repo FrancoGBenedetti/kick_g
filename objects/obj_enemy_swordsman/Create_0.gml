@@ -10,9 +10,8 @@
 // ══════════════════════════════════════════════════════════
 event_inherited();   // obj_enemy_parent → obj_actor_parent
 
-// ── BASE IMAGE SPEED — ajustado para este enemigo ──────────
-// Sobrescribir el valor del parent (0.2) si es necesario
-base_image_speed = 0.2;
+// ── BASE IMAGE SPEED — golem pesado, animación lenta ──────
+base_image_speed = 0.10;
 
 // ── Salud ──────────────────────────────────────────────────
 // Aplicar multiplicador de testing (global.enemy_test_hp_multiplier)
@@ -33,7 +32,8 @@ contact_damage_enabled = false;
 
 // ── Rango y velocidad ─────────────────────────────────────
 detection_range = ESWORDSMAN_AGGRO_RANGE;   // px circular — legado
-chase_speed     = 3;     // px/frame — más rápido que la patrulla
+chase_speed     = 1.5;   // px/frame — golem pesado pero visible
+walk_speed      = 1.0;   // px/frame — patrulla
 
 // Rango de ataque en dos fases:
 //   attack_trigger_distance: el enemigo "decide" atacar y entra en WINDUP.

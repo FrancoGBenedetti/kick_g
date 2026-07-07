@@ -787,7 +787,7 @@ afterimage_spawn = function() {
     // quede exactamente debajo del sprite del player (invisible por overlap).
     var _spawn_x = x - (facing * afterimage_back_offset);
 
-    var _inst = instance_create_layer(_spawn_x, y, "Instances_1", obj_dash_afterimage);
+    var _inst = instance_create_layer(_spawn_x, y, (layer_get_id("Instances_1") != -1 ? "Instances_1" : layer_get_name(layer)), obj_dash_afterimage);
 
     with (_inst) {
         ghost_sprite = other.sprite_index;

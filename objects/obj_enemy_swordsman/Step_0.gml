@@ -214,7 +214,7 @@ switch (estate) {
             sword_hitbox_id = instance_create_layer(
                 x + attack_facing * esword_hitbox_offset_x,
                 y + esword_hitbox_offset_y,
-                "Instances_2",
+                (layer_get_id("Instances_2") != -1 ? "Instances_2" : layer_get_name(layer)),
                 obj_enemy_sword_hitbox
             );
             with (sword_hitbox_id) {
@@ -299,7 +299,7 @@ if (estate == ESTATE_PATROL && wallContact && wallSide == patrol_dir) {
 if (estate == ESTATE_ATTACK_WINDUP
 ||  estate == ESTATE_ATTACK_ACTIVE) {
 
-    sprite_index = spr_test_atk;
+    sprite_index = spr_test_atk;   // sin sprite de golem de ataque por ahora
 
 } else if (abs(move_x) > 0.1 && !is_blocked_by_enemy) {
 
@@ -307,6 +307,6 @@ if (estate == ESTATE_ATTACK_WINDUP
 
 } else {
 
-    sprite_index = spr_test;   // idle — cubre COOLDOWN, PATROL parado, CHASE parado
+    sprite_index = spr_test_golem;  // idle — cubre COOLDOWN, PATROL parado, CHASE parado
 
 }
