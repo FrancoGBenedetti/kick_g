@@ -116,14 +116,14 @@
 #macro TEAM_PLAYER   1   // disparado por el jugador
 #macro TEAM_ENEMY    2   // disparado por un enemigo
 
-// ── Dash Slide: hitbox reducida ───────────────────────────────────
+// ── Low Profile: hitbox reducida ──────────────────────────────────
 //  col_top normal: -140 px (hitbox completa desde pies hasta casi hombros).
-//  col_top slide : -72 px (mitad inferior del cuerpo — permite pasar por túneles bajos).
+//  col_top bajo  : -72 px (mitad inferior del cuerpo — permite pasar por túneles bajos).
 //  Proporción mantenida ×2 desde el estándar 128×128 (era -36).
 //  Ajustar PLAYER_SLIDE_COL_TOP según el diseño de nivel:
 //    más negativo  → hitbox más alta (menos margen para túneles)
 //    menos negativo → hitbox más baja (más permisivo, solo cubre piernas)
-#macro PLAYER_SLIDE_COL_TOP  -72   // px — col_top reducido durante dash slide (era -36 en 128×128)
+#macro PLAYER_SLIDE_COL_TOP  -72   // px — col_top reducido durante dash slide/roll
 
 // ── Offset visual del sprite (ground embedding) ────────────────
 //  El sprite se dibuja PLAYER_DRAW_OY px MÁS ABAJO que la posición física.

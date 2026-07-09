@@ -708,28 +708,49 @@ recent_up_timer      = 0;    // ↑ presionado hace N frames
 sword_lock_frames = 14;   // frames de compromiso inicial al atacar con espada
 action_lock_timer = 0;    // cuenta regresiva; set en el enter hook de cada ATTACK_*
 
-// ── Dash Slide ────────────────────────────────────────────
-// La hitbox se reduce verticalmente durante un dash iniciado en el suelo.
-// Permite al jugador pasar bajo obstáculos bajos sin modificar las colisiones
-// laterales, de suelo ni la lógica de salto/wallslide/airdash.
+// ── Low Profile Collision ─────────────────────────────────
+// La hitbox se reduce verticalmente durante dash slide o roll.
+// Permite pasar bajo obstáculos bajos sin modificar las colisiones laterales
+// ni el punto de contacto con el suelo.
 //
 // Variables:
 //   normal_col_top  : col_top original (referencia para restaurar)
-//   slide_col_top   : col_top reducido durante el slide
+//   slide_col_top   : col_top reducido durante dash slide/roll
 //   is_sliding      : true mientras la hitbox está reducida
 //
 // Flujo:
-//   1. PSTATE.DASH + dash_was_grounded + isGrounded  → activar (is_sliding = true)
-//   2. Cada frame de slide: col_top = slide_col_top (antes de event_inherited)
-//   3. Al salir del dash o elevarse: verificar espacio libre sobre la cabeza
+//   1. Dash terrestre o roll activo → activar (is_sliding = true)
+//   2. Cada frame reducido: col_top = slide_col_top (antes de event_inherited)
+//   3. Al terminar dash/roll: verificar espacio libre sobre la cabeza
 //      → si libre → restaurar col_top, is_sliding = false
 //      → si bloqueado → mantener hitbox reducida hasta que haya espacio
 //
-// Casos NO cubiertos (is_sliding permanece false):
+// Casos NO cubiertos:
 //   salto normal, caída, wallslide, air dash, dash jump, hitstun
-normal_col_top = col_top;              // captura el valor del sprite bbox (-72 típico)
-slide_col_top  = PLAYER_SLIDE_COL_TOP; // scr_config: -36 por defecto
+normal_col_top = col_top;              // captura el valor normal del collider
+slide_col_top  = PLAYER_SLIDE_COL_TOP; // scr_config: mitad de altura aprox.
 is_sliding     = false;
+
+can_restore_low_profile_collision = function() {
+    var _cx1 = x + col_left  + 1;
+    var _cx2 = x;
+    var _cx3 = x + col_right - 1;
+    var _check_top = y + normal_col_top;
+    var _check_bottom = y + slide_col_top - 1;
+    var _probe_step = 28;
+    var _py = _check_top;
+
+    while (_py <= _check_bottom) {
+        if (level_solid_at(collision_map, _cx1, _py)
+        ||  level_solid_at(collision_map, _cx2, _py)
+        ||  level_solid_at(collision_map, _cx3, _py)) {
+            return false;
+        }
+        _py = (_py >= _check_bottom) ? _check_bottom + 1 : min(_py + _probe_step, _check_bottom);
+    }
+
+    return true;
+};
 
 // ── Afterimage / Ghost Trail ──────────────────────────────
 // Efecto visual durante el dash: deja copias del sprite que se desvanecen.
@@ -1335,7 +1356,7 @@ function end_roll() {
 };
 
 /// @function update_roll()
-/// @description Actualiza la lógica del Roll (movimiento, invulnerabilidad)
+/// @description Actualiza timers e invulnerabilidad del Roll
 /// @details Llamar cada frame en la sección gated del Step
 function update_roll() {
     if (!roll_active) return;
@@ -1346,9 +1367,6 @@ function update_roll() {
         end_roll();
         return;
     }
-
-    // Aplicar velocidad horizontal
-    vel_x = roll_dir * roll_speed;
 
     // Mantener invulnerabilidad durante el roll
     if (roll_invulnerable) {

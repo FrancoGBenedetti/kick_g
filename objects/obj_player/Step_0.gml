@@ -723,6 +723,12 @@ if (wallJumpLockTimer > 0) {
         vel_x = facing * counter_dash_speed;
     }
 
+} else if (roll_active) {
+
+    // Roll: movimiento forzado con hitbox baja e invulnerabilidad.
+    // Se procesa aquí para que no lo sobrescriba la desaceleración normal.
+    vel_x = roll_dir * roll_speed;
+
 } else if (_in_attack) {
 
     // Durante el ataque: desaceleración rápida en suelo, mantener
@@ -842,14 +848,14 @@ if (wallJumpLockTimer > 0) {
 
 move_x = vel_x;
 
-// ── DASH SLIDE: aplicar hitbox reducida (pre-física) ──────
-// Se activa únicamente cuando:
-//   • dash iniciado desde el suelo (dash_was_grounded)
-//   • jugador sigue en el suelo en este frame (isGrounded — valor del frame anterior)
-//   • estado actual es PSTATE.DASH
-// No aplica durante: air dash, dash jump, wallslide, ataque, salto, hitstun.
-var _should_slide = (player_state == PSTATE.DASH && dash_was_grounded && isGrounded);
-if (_should_slide && !is_sliding) {
+// ── LOW PROFILE: hitbox reducida pre-física ───────────────
+// Activa durante dash slide o roll. Si termina bajo un techo,
+// is_sliding queda true hasta que haya espacio para crecer.
+var _dash_slide_active = (player_state == PSTATE.DASH && dash_was_grounded && isGrounded);
+var _roll_slide_active = roll_active;
+var _should_low_profile = _dash_slide_active || _roll_slide_active;
+
+if (_should_low_profile && !is_sliding) {
     is_sliding = true;
 }
 if (is_sliding) {
@@ -889,11 +895,10 @@ if (variable_global_exists("debug_collision_live") && global.debug_collision_liv
 }
 // ─────────────────────────────────────────────────────────
 
-// ── DASH SLIDE: restaurar hitbox (post-física) ────────────
+// ── LOW PROFILE: restaurar hitbox (post-física) ───────────
 // Se evalúa cada frame mientras is_sliding sea true.
-// Condición para continuar el slide: sigue en DASH + suelo + was_grounded.
-// En cuanto alguna condición falle (fin del dash, salto, elevación),
-// se intenta restaurar col_top a su valor normal.
+// Condición para continuar reducido: dash slide activo o roll activo.
+// En cuanto ambas fallen, se intenta restaurar col_top a su valor normal.
 //
 // Seguridad de techo:
 //   Antes de expandir, se verifica que no haya tile sólido en la zona
@@ -903,19 +908,16 @@ if (variable_global_exists("debug_collision_live") && global.debug_collision_liv
 // Esto implementa el comportamiento Hollow Knight / Metroid Dread:
 //   "la hitbox no crece dentro de un techo, espera a tener espacio."
 if (is_sliding) {
-    var _slide_continues = (player_state == PSTATE.DASH && dash_was_grounded && isGrounded);
-    if (!_slide_continues) {
-        // Verificar espacio libre: dos puntos en col_top normal
-        var _cx1 = x + col_left  + 1;
-        var _cx2 = x + col_right - 1;
-        var _ceiling_blocked =
-            tile_solid_at(collision_map, _cx1, y + normal_col_top) ||
-            tile_solid_at(collision_map, _cx2, y + normal_col_top);
-        if (!_ceiling_blocked) {
+    var _dash_slide_continues = (player_state == PSTATE.DASH && dash_was_grounded && isGrounded);
+    var _roll_slide_continues = roll_active;
+    var _low_profile_continues = _dash_slide_continues || _roll_slide_continues;
+
+    if (!_low_profile_continues) {
+        if (can_restore_low_profile_collision()) {
             col_top    = normal_col_top;
             is_sliding = false;
         }
-        // Si _ceiling_blocked: mantener col_top = slide_col_top hasta que haya espacio
+        // Si no hay espacio: mantener col_top reducido hasta salir del túnel.
     }
 }
 

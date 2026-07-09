@@ -108,12 +108,15 @@ Sistemas ya existentes o esperados:
 - Dash.
 - Dash jump.
 - Air dash.
+- Roll con colision baja para pasar por espacios estrechos.
 
 Cuando se edite movimiento:
 
 - Respetar buffers y timers existentes.
 - Separar logica always-frame de logica gated por `global.do_step`.
 - No romper slow motion: acciones one-shot importantes deben capturarse aunque el gameplay este en slow-mo.
+- El roll debe reducir solo `col_top`, manteniendo `col_bottom` en los pies.
+- Si el roll termina bajo techo, la colision baja debe mantenerse hasta que haya espacio para restaurar la altura normal.
 
 ## Combate
 

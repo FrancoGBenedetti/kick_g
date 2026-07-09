@@ -597,7 +597,7 @@ if (variable_global_exists("debug_attack") && global.debug_attack) {
 }
 
 // ══════════════════════════════════════════════════════════
-// 4. DEBUG DASH SLIDE
+// 4. DEBUG LOW PROFILE COLLISION
 // Activo cuando is_sliding && global.debug_collision
 // ══════════════════════════════════════════════════════════
 if (is_sliding && variable_global_exists("debug_collision") && global.debug_collision) {
