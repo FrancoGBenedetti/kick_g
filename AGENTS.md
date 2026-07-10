@@ -1,6 +1,7 @@
 # AGENTS.md
 
-Lineamientos para trabajar en este proyecto GameMaker (`kick_g`).
+Guia operativa para agentes que desarrollen en este proyecto GameMaker (`kick_g`).
+Para contexto de diseno, vision del juego y sistemas esperados, leer `README.md`.
 
 ## Reglas Del Usuario
 
@@ -10,43 +11,15 @@ Lineamientos para trabajar en este proyecto GameMaker (`kick_g`).
 - Mantener archivos chicos y legibles. Preferir componentes, scripts dedicados y responsabilidades separadas.
 - No reescribir sistemas completos si el cambio puede hacerse de forma localizada.
 
-## Vision Del Juego
+## Forma De Trabajo
 
-Juego 2D de accion y plataformas con mezcla de:
-
-- Action platformer.
-- Beat'em up cinematico.
-- Combate tecnico.
-- Movimiento avanzado.
-- Boss fights cinematograficos.
-
-Referencias principales: `Mega Man X4`, `Have a Nice Death`, `Cuphead`, `Shovel Knight`, `Street Fighter II`, `Hollow Knight`.
-
-La direccion tecnica debe favorecer PC, Nintendo Switch y gamepad desde temprano.
-
-## Escala Y Arte
-
-- Resolucion logica del gameplay: `640x360`.
-- Room objetivo actual (`RoomBigFloor`): `12288x5120`.
-- Viewport objetivo: `1920x1080`.
-- Tiles: `64x64`, sin separacion, margen ni offset.
-- Sprites del jugador: canvas `256x256`.
-- Altura visual objetivo del jugador: aproximadamente `160px`.
-- El personaje no debe llenar todo el canvas: usar alrededor de 65%-70% del alto.
-- Mantener origen, pies y alineacion consistentes entre animaciones.
-- Texture interpolation/interpolate colors debe mantenerse apagado para evitar blur.
-
-## Colisiones
-
-- La colision no representa el arte completo.
-- La mascara representa peso, piernas y contacto con suelo.
-- Para sprites `256x256`, la mascara base recomendada es:
-  - `left: 108`
-  - `right: 148`
-  - `top: 170`
-  - `bottom: 255`
-- Es aceptable que visualmente los pies entren levemente en el piso; la colision real debe seguir precisa.
-- No ajustar hitboxes solo para que calcen con el dibujo completo si eso empeora el gameplay.
+- Leer el codigo existente antes de asumir arquitectura.
+- Mantener cambios acotados al sistema solicitado.
+- Preferir patrones existentes del proyecto antes de crear una abstraccion nueva.
+- Extraer helpers cuando un evento u objeto empieza a mezclar demasiadas responsabilidades.
+- Usar comentarios cortos solo para decisiones de gameplay, timing o integracion no obvias.
+- Si se agregan recursos GameMaker nuevos (`scripts`, `objects`, `sprites`, `rooms`, `tilesets`), registrar sus `.yy` en `kick_g.yyp` cuando corresponda.
+- Revisar estaticamente los archivos tocados antes de entregar.
 
 ## Arquitectura GameMaker
 
@@ -56,24 +29,7 @@ La direccion tecnica debe favorecer PC, Nintendo Switch y gamepad desde temprano
 - `obj_camera_controller`: seguimiento, zoom, shake y transiciones cinematicas.
 - `obj_time_manager`: `global.time_scale`, slow motion y gating de steps.
 
-## Rooms
-
-- Un room representa una etapa o espacio con sus propias mecanicas.
-- El menu principal tambien es un room.
-- El mapa del juego debe ser otro room.
-- Los recursos de room deben usar nombres tecnicos sin espacios (`RoomBigFloor`); el texto visible puede usar nombres de diseno (`Big floor`).
-- No usar cambio de room para una pausa in-game si se necesita conservar el estado exacto de la etapa; usar overlay/manager dentro del room activo.
-- Cambiar de room para menus principales, mapas, hubs o transiciones reales esta bien.
-- Las props decorativas grandes (`sofas`, mesas, cuadros, chimeneas, gabinetes, etc.) deben ir en Asset Layers/Sprite Layers, no en Tile Layers.
-- Mantener Tile Layers solo para tiles repetibles: pisos, alfombras, paredes y tilesets modulares.
-- En `RoomBigFloor`, la capa `Props` es la capa para props grandes; debe quedar sobre piso/alfombra y bajo foreground/instancias.
-- No crear TileSets para sprites decorativos individuales grandes, aunque vengan desde `Downloads`.
-- Importar props grandes como sprites con nombre `spr_prop_*` y parent virtual `folders/Sprites/Tiles/Props.yy`.
-- Colocar props en el room arrastrando el sprite a la capa `Props`; no pintarlas con tiles.
-- Si una prop necesita cambiar de tamano en una etapa, escalar la instancia/asset dentro del room, no cambiar el tamano del sprite base.
-- Si existe una prop como TileSet gigante de una sola pieza, reemplazar ese flujo por el sprite original en la capa `Props`.
-
-Mantener la separacion:
+Mantener separacion:
 
 - Hardware input -> `obj_input` / scripts de input.
 - Estado normalizado -> `global.inp`.
@@ -88,29 +44,49 @@ Mantener la separacion:
   - `*_held`: mientras se mantiene.
   - `*_released`: solo el frame de soltar.
 - Para analog sticks, usar deadzone y detectar cruce de eje para one-shot direccional.
-- Preparar el codigo para remap futuro, pero no crear menu de configuracion hasta que el layout base este estable.
+
+## Rooms Y Assets
+
+- Un room representa una etapa o espacio con sus propias mecanicas.
+- El menu principal tambien es un room.
+- Los recursos de room deben usar nombres tecnicos sin espacios (`RoomBigFloor`); el texto visible puede usar nombres de diseno (`Big floor`).
+- No usar cambio de room para pausa in-game si se necesita conservar el estado exacto de la etapa; usar overlay/manager dentro del room activo.
+- Cambiar de room para menus principales, mapas, hubs o transiciones reales esta bien.
+
+Props:
+
+- Props decorativas grandes (`sofas`, mesas, cuadros, chimeneas, gabinetes, etc.) van en Asset Layers/Sprite Layers, no en Tile Layers.
+- Mantener Tile Layers solo para tiles repetibles: pisos, alfombras, paredes y tilesets modulares.
+- En `RoomBigFloor`, la capa `Props` queda sobre piso/alfombra y bajo foreground/instancias.
+- No crear TileSets para sprites decorativos individuales grandes, aunque vengan desde `Downloads`.
+- Importar props grandes como sprites `spr_prop_*` con parent virtual `folders/Sprites/Tiles/Props.yy`.
+- Colocar props en el room arrastrando el sprite a la capa `Props`; no pintarlas con tiles.
+- Si una prop necesita cambiar de tamano en una etapa, escalar la instancia/asset dentro del room, no cambiar el tamano del sprite base.
+- Si existe una prop como TileSet gigante de una sola pieza, reemplazar ese flujo por el sprite original en la capa `Props`.
+
+## Escala, Arte Y Colisiones
+
+- Resolucion logica del gameplay: `640x360`.
+- Viewport objetivo: `1920x1080`.
+- Tiles: `64x64`, sin separacion, margen ni offset.
+- Sprites del jugador: canvas `256x256`.
+- Altura visual objetivo del jugador: aproximadamente `160px`.
+- Mantener origen, pies y alineacion consistentes entre animaciones.
+- Texture interpolation/interpolate colors debe mantenerse apagado para evitar blur.
+
+Colisiones:
+
+- La colision no representa el arte completo.
+- La mascara representa peso, piernas y contacto con suelo.
+- Para sprites `256x256`, la mascara base recomendada es:
+  - `left: 108`
+  - `right: 148`
+  - `top: 170`
+  - `bottom: 255`
+- Es aceptable que visualmente los pies entren levemente en el piso; la colision real debe seguir precisa.
+- No ajustar hitboxes solo para que calcen con el dibujo completo si eso empeora el gameplay.
 
 ## Movimiento
-
-Sistemas ya existentes o esperados:
-
-- Movimiento horizontal.
-- Salto.
-- Gravedad.
-- Tile collision.
-- Coyote time.
-- Jump buffer.
-- Facing.
-- State machine.
-- Wall contact.
-- Wall slide.
-- Wall jump.
-- Dash.
-- Dash jump.
-- Air dash.
-- Roll con colision baja para pasar por espacios estrechos.
-
-Cuando se edite movimiento:
 
 - Respetar buffers y timers existentes.
 - Separar logica always-frame de logica gated por `global.do_step`.
@@ -119,17 +95,6 @@ Cuando se edite movimiento:
 - Si el roll termina bajo techo, la colision baja debe mantenerse hasta que haya espacio para restaurar la altura normal.
 
 ## Combate
-
-Sistemas principales:
-
-- Espada con combo de 3 golpes.
-- Arco con carga, aiming, disparo aereo y bullet time.
-- Block/parry.
-- Counter attack.
-- Hitboxes independientes.
-- Knockback, hit stop y VFX.
-
-Reglas:
 
 - No spawnear ataques desde los pies/origin si representan manos, torso o arma.
 - Usar sockets/offsets relativos para espada, arco, flechas y VFX.
@@ -150,7 +115,7 @@ Reglas:
   - Futuro `obj_trap_ceiling_drop`: algo cae desde arriba.
   - Futuro `obj_trap_floor_burst`: algo sale desde abajo.
   - Futuro `obj_trap_hitbox_only`: no spawnea enemigo, solo golpea/da feedback.
-- Las variables por instancia deben poder cambiarse desde Creation Code del room:
+- Variables por instancia esperadas:
   - `trigger_mode`, `trigger_range`, `trigger_xoff`, `trigger_yoff`, `trigger_w`, `trigger_h`.
   - `cover_sprite`, `broken_sprite`, `broken_xoff`, `broken_yoff`, `trap_visual_xscale`, `trap_visual_yscale`, `break_sound`.
   - `payload_spawn_enemy`, `enemy_object`, `enemy_spawn_xoff`, `enemy_spawn_yoff`, `enemy_spawn_layer`.
@@ -158,7 +123,6 @@ Reglas:
 - Si un hijo necesita defaults propios, setearlos antes de `event_inherited()` para que `obj_trap_parent` respete overrides por instancia.
 - Las trampas se colocan en capas `Instances`, no en `Props` ni en Tile Layers.
 - Sprites visuales de trampas usan nombre `spr_trap_*`; no crear TileSets para cubiertas o paneles rompibles.
-- Si una cubierta de trampa queda grande/chica, ajustar `trap_visual_xscale`/`trap_visual_yscale` o la escala de la instancia; no convertirla en TileSet.
 
 ## Hazards
 
@@ -171,7 +135,6 @@ Reglas:
   - `hazard_kill_player`, `hazard_damage`, `hazard_enabled`.
   - `hazard_debug_draw`, `hazard_debug_color`.
 - Para ajustar una zona en un room, usar Creation Code de la instancia; no hardcodear medidas de un room dentro del objeto.
-- Cuando el visual este listo, apagar `hazard_debug_draw` y dejar el Tile Layer visual como feedback para el jugador.
 
 ## Solidos Dinamicos Y Puentes
 
@@ -190,7 +153,6 @@ Reglas:
 - `bridge_side = 1` abre hacia la derecha; `bridge_side = -1` invierte el puente para abrir hacia la izquierda.
 - `bridge_length` es el largo jugable y visual; el sprite se escala proporcionalmente a ese largo para mantener dibujo y colision sincronizados.
 - No editar el tamano del PNG base para ajustar una instancia de puente; usar `bridge_length`, `bridge_visual_yscale`, `bridge_thickness` y `bridge_collision_padding`.
-- Si el puente cerrado se vuelve facil de escalar por la colision inclinada, ajustar `bridge_closed_angle`, `bridge_thickness` o la geometria alrededor del pivote.
 - Los actores prueban izquierda/centro/derecha en colision horizontal para detectar solidos dinamicos finos o inclinados.
 
 ## Camara
@@ -202,35 +164,13 @@ Reglas:
 
 ## Estados Y Animacion
 
-Estados actuales base:
-
-- `IDLE`
-- `RUN`
-- `JUMP`
-- `FALL`
-- `WALL`
-- `DASH`
-- Ataques, block, dash attack, counter y down slash segun `PSTATE`.
-
-Reglas:
-
 - Gameplay state y visual animation state pueden estar separados.
 - No reiniciar animacion cada frame si el sprite no cambio.
 - Al agregar animaciones nuevas, mantener mismo origin y punto de pies.
 - Priorizar legibilidad de transiciones sobre switches gigantes sin helpers.
-
-## Estilo De Codigo
-
-- Preferir scripts chicos con una responsabilidad clara.
-- Evitar archivos largos; si un evento crece demasiado, extraer helpers.
-- Usar nombres descriptivos en ingles o espanol consistente con el archivo existente.
-- Comentarios cortos solo cuando expliquen decisiones de gameplay o timing.
-- No introducir refactors grandes junto con fixes pequenos.
-- Mantener cambios acotados al sistema solicitado.
 
 ## Antes De Entregar Cambios
 
 - Revisar estaticamente archivos tocados.
 - Confirmar que no se corrio test, git ni migracion.
 - Indicar al usuario exactamente que debe probar en GameMaker cuando aplique.
-- Si se agregan recursos GameMaker nuevos (`scripts`, `objects`, `sprites`), registrar sus `.yy` en `kick_g.yyp` cuando corresponda.
