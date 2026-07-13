@@ -78,3 +78,10 @@ if (keyboard_check_pressed(vk_f11)) {
                                    || !global.debug_dash_afterimage;
     show_debug_message("Dash afterimage debug: " + string(global.debug_dash_afterimage));
 }
+
+// F1: panel de debug de obj_battleroom_parent — estado, enemigos vivos, arena.
+if (keyboard_check_pressed(vk_f1)) {
+    global.debug_battleroom = !variable_global_exists("debug_battleroom")
+                              || !global.debug_battleroom;
+    show_debug_message("BattleRoom debug: " + string(global.debug_battleroom));
+}

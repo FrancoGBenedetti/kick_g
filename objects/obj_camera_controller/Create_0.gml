@@ -1,54 +1,41 @@
 // ══════════════════════════════════════════════════════════
-// CAMERA CONTROLLER
-// Crea y gestiona la cámara GMS2 para este room.
+// CAMERA CONTROLLER — Create
+//
+// Sistema de cámara centralizado con 3 vistas:
+//   CLOSE   (960×540)  — acción / zoom in
+//   DEFAULT (1152×648) — gameplay normal  ← inicio
+//   FAR     (1280×720) — boss / zoom out
+//
+// Cambiar vista: K (alejar) / L (acercar)
+// API externa: with (obj_camera_controller) { camera_set_view_mode(CameraViewMode.FAR); }
 // ══════════════════════════════════════════════════════════
 
-// ── Tamaño base de la vista (en píxeles de mundo) ────────
-// 960×540 = 16:9 base pixel-perfect (1 px mundo = 2 px en puerto 1920×1080).
-// El zoom de GAMEPLAY multiplica este base con gameplay_zoom_factor.
-// La vista real durante el juego es base × gameplay_zoom_factor.
-//
-// Cálculo de proporción de pantalla (player 150px visual):
-//   ×1.0   → 960×540   → player 150/540  = 27.8% — muy cerca
-//   ×2.0   → 1920×1080 → player 150/1080 = 13.9%
-//   ×2.667 → 2560×1440 → player 150/1440 = 10.4% ← default (MMX4/HNAD feel)
-//   ×3.333 → 3200×1800 → player 150/1800 =  8.3% — boss/arena grande
-//   ×4.0   → 3840×2160 → player 150/2160 =  6.9% — extremadamente alejado
-//
-// Referencia visual: en Mega Man X4 el personaje ocupa ~9-11% de la altura.
-// Con ×2.667 (10.4%) se logra ese feeling de personaje pequeño y controlable.
-base_camera_width   = GAME_W;   // 960 — desde scr_config
-base_camera_height  = GAME_H;   // 540 — desde scr_config
+// ── Vista activa (índice numérico para poder hacer ±1) ────
+// 0 = CLOSE | 1 = DEFAULT | 2 = FAR
+camera_view_index = 1;   // inicia en DEFAULT
 
-// ── Factor de zoom del gameplay normal ────────────────────
-// Estado "en reposo" durante el juego. zoom_reset() vuelve aquí.
-// 2.667 = 8/3 → vista 2560×1440 → player 10.4% → feel MMX4/metroidvania amplio.
-// Bajar a 2.0 (1920×1080) si se quiere más cerca.
-// Subir a 3.333 (3200×1800) para arenas de boss extremadamente grandes.
-gameplay_zoom_factor = 2.667;
+// ── Tamaño actual (interpolado por lerp cada frame) ───────
+current_camera_width  = CAM_VIEW_DEFAULT_W;   // 1792
+current_camera_height = CAM_VIEW_DEFAULT_H;   // 1008
 
-// Tamaño actual de la vista (interpolado cada frame por zoom_lerp).
-// No modificar directamente — se actualiza solo en End Step.
-current_camera_width  = base_camera_width  * gameplay_zoom_factor;   // 2560
-current_camera_height = base_camera_height * gameplay_zoom_factor;   // 1440
+// ── Tamaño objetivo (camera_set_view_mode escribe aquí) ───
+target_camera_width  = current_camera_width;
+target_camera_height = current_camera_height;
 
-// Tamaño objetivo al que la cámara transiciona.
-// Modificar esto para cambiar el zoom dinámicamente.
-target_camera_width   = current_camera_width;
-target_camera_height  = current_camera_height;
-
-// Velocidad de interpolación del zoom (0.0 = sin movimiento | 1.0 = instantáneo).
-// 0.05–0.08: transición suave tipo cinemática (~0.5–1s)
-// 0.10–0.15: transición reactiva para combate
-zoom_lerp = 0.06;
+// ── Velocidad de interpolación de zoom ────────────────────
+// 0.08 → transición suave (~0.5-1s)
+// 0.12 → más reactivo
+zoom_lerp = 0.08;
 
 // ── Crear cámara GMS2 y asignarla al viewport 0 ───────────
 cam = camera_create();
-camera_set_view_size(cam, base_camera_width, base_camera_height);
+// Aplicar vista DEFAULT inmediatamente (sin lerp) para que el
+// primer frame ya muestre el tamaño correcto.
+camera_set_view_size(cam, current_camera_width, current_camera_height);
 camera_set_view_pos(cam, 0, 0);
 
 view_camera[0]  = cam;
-view_wport[0]   = DISPLAY_W;   // 1920 — port completo HD
+view_wport[0]   = DISPLAY_W;   // 1920
 view_hport[0]   = DISPLAY_H;   // 1080
 view_xport[0]   = 0;
 view_yport[0]   = 0;
@@ -56,52 +43,37 @@ view_visible[0] = true;
 view_enabled    = true;
 
 // ── Target de seguimiento ─────────────────────────────────
-// Se busca automáticamente en el primer End Step.
-// Para override manual: cam_controller.target = other_instance_id;
 target          = noone;
-cam_initialized = false;   // flag para snap inicial (evita zoom-out al arrancar)
+cam_initialized = false;
 
 // ── Posición actual de la cámara (top-left del mundo) ─────
 cam_x = 0;
 cam_y = 0;
 
-// ── Suavizado (lerp) ──────────────────────────────────────
-// 0.0 = cámara fija | 1.0 = sin suavizado (instantáneo).
-// Valores recomendados:
-//   0.08–0.10 → suave (Shovel Knight, Celeste)
-//   0.12–0.15 → ágil y reactivo (Mega Man X)
+// ── Suavizado de posición ─────────────────────────────────
 lerp_x = 0.12;
 lerp_y = 0.10;
 
 // ── Offset del centro de la vista al target ───────────────
-// offset_x > 0 → la vista se desplaza a la derecha del jugador
-// offset_y < 0 → elevado: muestra más espacio arriba (plataformas, picos)
-//
-// Con vista de gameplay 2560×1440 (base×2.667) y CAM_OFFSET_Y=-180:
-//   player aparece a 1440/2 + 180 = 900px desde arriba = 62.5% de pantalla
-//   Cabeza del jugador (150px) queda a ~750px del borde superior ✓
+// CAM_OFFSET_Y = -80 → player a 62% desde arriba en vista 648px
 offset_x = 0;
-offset_y = CAM_OFFSET_Y;   // -180 — desde scr_config
+offset_y = CAM_OFFSET_Y;
 
 // ── Look-ahead horizontal ─────────────────────────────────
-// Desplaza la cámara en la dirección que mira el jugador.
-// Futuro: activar cuando exista sprite de run/dash con facing claro.
 lookahead_enabled = false;
-lookahead_dist    = CAM_LOOKAHEAD;  // 120 px proporcional a 960px de vista — desde scr_config
-lookahead_speed   = 0.06;           // velocidad de transición del look-ahead
-lookahead_current = 0;      // valor interpolado actual
+lookahead_dist    = CAM_LOOKAHEAD;
+lookahead_speed   = 0.06;
+lookahead_current = 0;
 
 // ── Offset vertical (aim) ─────────────────────────────────
-// Futuro: desplazar vista arriba/abajo al apuntar o caer.
 aim_offset_y       = 0;
 aim_offset_target  = 0;
 aim_offset_speed   = 0.05;
 
 // ── Camera shake ──────────────────────────────────────────
-// Activar externamente: with (obj_camera_controller) { do_shake(4, 12); }
 shake_intensity = 0;
 shake_timer     = 0;
-shake_decay     = 0.85;   // factor de decaimiento por frame (0=apagado, 1=constante)
+shake_decay     = 0.85;
 shake_x         = 0;
 shake_y         = 0;
 
@@ -110,50 +82,116 @@ do_shake = function(_intensity, _duration) {
     shake_timer     = _duration;
 };
 
-// ── API de zoom ───────────────────────────────────────────
-// Llamar desde cualquier sistema externo para cambiar el zoom.
-
-// Zoom a un factor relativo al tamaño base.
-//   factor > 1.0 → zoom out (cámara ve más mundo)
-//   factor < 1.0 → zoom in  (cámara ve menos mundo, mayor detalle)
-//   factor = 1.0 → tamaño normal
-// Ejemplo desde un boss: with (obj_camera_controller) { zoom_to_factor(1.5); }
-zoom_to_factor = function(_factor) {
-    target_camera_width  = base_camera_width  * _factor;
-    target_camera_height = base_camera_height * _factor;
+// ── API principal: cambiar modo de cámara ─────────────────
+// _mode    : CameraViewMode.CLOSE / DEFAULT / FAR
+// _instant : true = sin lerp (para iniciar rooms sin barrido)
+//
+// Uso externo:
+//   with (obj_camera_controller) { camera_set_view_mode(CameraViewMode.FAR); }
+//   with (obj_camera_controller) { camera_set_view_mode(CameraViewMode.DEFAULT, true); }
+camera_set_view_mode = function(_mode, _instant = false) {
+    camera_view_index = _mode;
+    var _w, _h;
+    switch (_mode) {
+        case CameraViewMode.CLOSE:
+            _w = CAM_VIEW_CLOSE_W;    // 960
+            _h = CAM_VIEW_CLOSE_H;    // 540
+        break;
+        case CameraViewMode.FAR:
+            _w = CAM_VIEW_FAR_W;      // 1280
+            _h = CAM_VIEW_FAR_H;      // 720
+        break;
+        default: // CameraViewMode.DEFAULT
+            _w = CAM_VIEW_DEFAULT_W;  // 1152
+            _h = CAM_VIEW_DEFAULT_H;  // 648
+        break;
+    }
+    target_camera_width  = _w;
+    target_camera_height = _h;
+    if (_instant) {
+        current_camera_width  = _w;
+        current_camera_height = _h;
+        camera_set_view_size(cam, _w, _h);
+    }
 };
 
-// Zoom a dimensiones absolutas en píxeles de mundo.
-// Útil cuando una zona del mapa tiene dimensiones específicas.
-// Ejemplo: zoom_to_size(640, 360)  → muestra exactamente 640×360 del mundo.
+// ── Zoom step: aleja un nivel (K) ─────────────────────────
+camera_zoom_step_out = function() {
+    var _next = clamp(camera_view_index + 1, 0, 2);
+    if (_next != camera_view_index) {
+        camera_set_view_mode(_next);
+        show_debug_message("[CAMERA] → " + ["CLOSE","DEFAULT","FAR"][_next]);
+    }
+};
+
+// ── Zoom step: acerca un nivel (L) ────────────────────────
+camera_zoom_step_in = function() {
+    var _next = clamp(camera_view_index - 1, 0, 2);
+    if (_next != camera_view_index) {
+        camera_set_view_mode(_next);
+        show_debug_message("[CAMERA] → " + ["CLOSE","DEFAULT","FAR"][_next]);
+    }
+};
+
+// ── Zoom a dimensiones absolutas (uso avanzado) ───────────
 zoom_to_size = function(_width, _height) {
     target_camera_width  = _width;
     target_camera_height = _height;
 };
 
-// Restaurar al zoom de gameplay normal (base × gameplay_zoom_factor).
-// Esta es la vista "de reposo" durante el juego.
-// NO vuelve al pixel-perfect puro (×1.0) — usa gameplay_zoom_factor.
-// Para volver al base exacto: zoom_to_factor(1.0).
+// ── Restaurar a DEFAULT ───────────────────────────────────
 zoom_reset = function() {
-    target_camera_width  = base_camera_width  * gameplay_zoom_factor;
-    target_camera_height = base_camera_height * gameplay_zoom_factor;
+    camera_set_view_mode(CameraViewMode.DEFAULT);
 };
 
-// Cambiar velocidad de transición sin afectar el target.
-// Útil para hacer una transición lenta (cinemática) vs rápida (combate).
-zoom_set_speed = function(_speed) {
-    zoom_lerp = _speed;
-};
-
-// ── Límites del room (clamp) ──────────────────────────────
-// bounds_* pueden sobreescribirse para boss rooms o secciones de scroll fijo.
-// Ejemplo: bounds_right = 640 → la cámara no avanza más allá de x=640.
+// ── Límites del room ──────────────────────────────────────
 bounds_left   = 0;
 bounds_top    = 0;
 bounds_right  = room_width;
 bounds_bottom = room_height;
 
+// ── Override de bounds (usado por BattleRoom para limitar la cámara
+// a una arena más chica que el room completo) ─────────────
+// Mientras camera_bounds_override_enabled == true, Step_2.gml usa
+// camera_bounds_left/top/right/bottom en vez de recalcular bounds_right/
+// bounds_bottom desde room_width/room_height cada frame.
+camera_bounds_override_enabled = false;
+camera_bounds_left   = 0;
+camera_bounds_top    = 0;
+camera_bounds_right  = 0;
+camera_bounds_bottom = 0;
+
+// ── API: activar/desactivar el override de bounds ─────────
+// Uso externo (igual patrón que camera_set_view_mode):
+//   with (obj_camera_controller) { camera_set_bounds_override(a,b,c,d); }
+//   with (obj_camera_controller) { camera_clear_bounds_override(); }
+camera_set_bounds_override = function(_left, _top, _right, _bottom) {
+    if (_right <= _left || _bottom <= _top) {
+        show_debug_message("[CAMERA WARNING] Invalid override bounds — ignored.");
+        return;
+    }
+
+    camera_bounds_override_enabled = true;
+    camera_bounds_left   = _left;
+    camera_bounds_top    = _top;
+    camera_bounds_right  = _right;
+    camera_bounds_bottom = _bottom;
+
+    if ((_right - _left) < current_camera_width || (_bottom - _top) < current_camera_height) {
+        show_debug_message("[CAMERA WARNING] Arena bounds smaller than camera view.");
+        // No es un error — Step_2 ya clampea de forma segura (la vista
+        // simplemente muestra un poco más que la arena). Solo se avisa.
+    }
+
+    show_debug_message("[CAMERA] bounds override enabled");
+    show_debug_message("[CAMERA] override bounds: " + string(_left) + "/" + string(_top) + "/" + string(_right) + "/" + string(_bottom));
+};
+
+camera_clear_bounds_override = function() {
+    camera_bounds_override_enabled = false;
+    show_debug_message("[CAMERA] bounds override disabled");
+};
+
 // ── Debug HUD ─────────────────────────────────────────────
-// F7 en Step_0 activa/desactiva el overlay de cámara en pantalla.
-camera_debug_visible = true;   // true para ver debug al arrancar; false en producción
+// F7 → toggle. true = visible al arrancar para validar zoom.
+camera_debug_visible = true;

@@ -68,5 +68,23 @@ on_damage = function(_amount, _source) {
 
 die = function() {
     show_debug_message("[DBG] ENEMY_BASIC die()");
+
+    // Mismo protocolo de notificación que obj_enemy_parent/Create_0.gml →
+    // die(). obj_enemy_basic hereda de obj_actor_parent directo (no de
+    // obj_enemy_parent), así que necesita su propia copia de este bloque.
+    if (variable_instance_exists(id, "spawner_owner")
+    && !spawner_death_reported
+    && instance_exists(spawner_owner)) {
+        spawner_death_reported = true;
+        spawner_owner.spawner_on_enemy_died(id);
+    }
+
+    if (variable_instance_exists(id, "battleroom_owner")
+    && !battleroom_death_notified
+    && instance_exists(battleroom_owner)) {
+        battleroom_death_notified = true;
+        battleroom_owner.battleroom_on_enemy_died(id);
+    }
+
     instance_destroy();
 };

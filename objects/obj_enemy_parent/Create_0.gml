@@ -314,5 +314,29 @@ base_image_speed = 0.2;  // velocidad base de animación (ajustar por tipo enemi
 
 die = function() {
     show_debug_message("[DBG] ENEMY die(): " + object_get_name(object_index));
+
+    // Avisar al spawner que me creó, si corresponde (bookkeeping propio del
+    // spawner). No asume que todo enemigo viene de un obj_enemy_spawner —
+    // si no tiene spawner_owner (p.ej. un enemigo puesto a mano en el
+    // room), este bloque simplemente no hace nada.
+    if (variable_instance_exists(id, "spawner_owner")
+    && !spawner_death_reported
+    && instance_exists(spawner_owner)) {
+        spawner_death_reported = true;
+        spawner_owner.spawner_on_enemy_died(id);
+    }
+
+    // Avisar directamente a la BattleRoom que me registró. Esta es la
+    // notificación que decide enemy_alive_count / la transición a
+    // CLEARING — independiente de si además tengo spawner_owner. Si no
+    // pertenezco a ninguna BattleRoom (battleroom_owner nunca se asignó),
+    // este bloque tampoco hace nada.
+    if (variable_instance_exists(id, "battleroom_owner")
+    && !battleroom_death_notified
+    && instance_exists(battleroom_owner)) {
+        battleroom_death_notified = true;
+        battleroom_owner.battleroom_on_enemy_died(id);
+    }
+
     instance_destroy();
 };

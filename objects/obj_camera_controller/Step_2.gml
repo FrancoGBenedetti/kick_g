@@ -9,10 +9,21 @@ if (!instance_exists(target)) {
 }
 
 // ── Actualizar límites del room ───────────────────────────
-// Por si cambia dinámicamente (rooms procedurales, expansión de nivel).
-// bounds_* pueden sobreescribirse antes de este punto para zonas bloqueadas.
-bounds_right  = room_width;
-bounds_bottom = room_height;
+// Si hay un override activo (BattleRoom limitando la cámara a una arena),
+// usar esos bounds completos en vez de recalcular desde room_width/height.
+// Sin override, comportamiento normal sin cambios: por si el room cambia
+// dinámicamente (rooms procedurales, expansión de nivel), bounds_right/
+// bounds_bottom siguen recalculándose cada frame; bounds_left/bounds_top
+// pueden sobreescribirse antes de este punto para zonas bloqueadas.
+if (camera_bounds_override_enabled) {
+    bounds_left   = camera_bounds_left;
+    bounds_top    = camera_bounds_top;
+    bounds_right  = camera_bounds_right;
+    bounds_bottom = camera_bounds_bottom;
+} else {
+    bounds_right  = room_width;
+    bounds_bottom = room_height;
+}
 
 // ── Zoom: interpolación de dimensiones ────────────────────
 // current → target a ritmo de zoom_lerp, independiente del time_scale del juego.

@@ -110,6 +110,34 @@ if (variable_global_exists("debug_counterattack") && global.debug_counterattack)
     draw_set_alpha(_da_ca2);
 }
 
+// ── Debug de BattleRoom (F1) ───────────────────────────────
+// Solo se muestra si este enemigo fue creado por obj_enemy_spawner
+// (tiene battleroom_owner asignado).
+if ((variable_global_exists("debug_battleroom") && global.debug_battleroom)
+&& variable_instance_exists(id, "battleroom_owner")) {
+    var _dc3 = draw_get_color();
+    var _da3 = draw_get_alpha();
+
+    draw_set_alpha(1);
+    draw_set_halign(fa_center);
+    draw_set_valign(fa_bottom);
+    draw_set_color(c_aqua);
+
+    var _owner_txt   = instance_exists(battleroom_owner) ? object_get_name(battleroom_owner.object_index) : "none";
+    var _spawner_txt = (variable_instance_exists(id, "spawned_by_spawner") && instance_exists(spawned_by_spawner))
+        ? spawned_by_spawner.spawner_id : "none";
+
+    draw_text(x, y - 90, "[BR] owner:" + _owner_txt + "  id:" + string(battleroom_id));
+    draw_text(x, y - 76, "spawner:" + _spawner_txt
+        + "  reg:" + string(battleroom_enemy_registered)
+        + "  died:" + string(battleroom_death_notified));
+
+    draw_set_halign(fa_left);
+    draw_set_valign(fa_top);
+    draw_set_color(_dc3);
+    draw_set_alpha(_da3);
+}
+
 // ── Debug de colisión entre enemigos (F5) ─────────────────
 if (!variable_global_exists("debug_enemy_collision") || !global.debug_enemy_collision) exit;
 

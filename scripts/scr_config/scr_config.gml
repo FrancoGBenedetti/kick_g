@@ -26,18 +26,56 @@
 #macro DISPLAY_W 1920
 #macro DISPLAY_H 1080
 
-// ── Cámara — offset y look-ahead ──────────────────────────────
-//  CAM_OFFSET_Y: desplaza el centro de la vista hacia arriba para
-//  mostrar más espacio sobre el jugador (plataformas, picos, lectura).
-//  Con GAME_H=540 y personaje de 150 px visible, vista gameplay 2560×1440:
-//    sin offset → personaje a 50 % de pantalla (centrado)
-//    −180 px    → personaje a 900/1440 = 62.5 % desde arriba ✓
-//    Cabeza del personaje queda a ~750 px del borde superior → lectura cómoda.
+// ── Camera View Modes ──────────────────────────────────────────
+//  3 vistas 16:9. El player visible es ~150 px (sprite 256×256).
+//  Controlar con K (alejar) y L (acercar).
 //
-//  CAM_LOOKAHEAD: desplazamiento horizontal máx. en la dirección de avance.
-//  Proporcional: 2560 × 0.125 = 320 px.
-#macro CAM_OFFSET_Y   -180    // px — jugador en tercio inferior (vista 2560×1440)
-#macro CAM_LOOKAHEAD   320    // px — look-ahead horizontal máximo (proporcional a vista 2560px)
+//    CLOSE:   1344×756  → 150/756  = 19.8%  acción intensa / zoom in
+//    DEFAULT: 1792×1008 → 150/1008 = 14.8%  gameplay normal   ← inicio
+//    FAR:     2304×1296 → 150/1296 = 11.5%  boss / arenas / más lectura
+enum CameraViewMode {
+    CLOSE,    // 0 — zoom in
+    DEFAULT,  // 1 — gameplay normal
+    FAR       // 2 — zoom out
+}
+
+#macro CAM_VIEW_CLOSE_W   1344
+#macro CAM_VIEW_CLOSE_H    756
+#macro CAM_VIEW_DEFAULT_W 1792
+#macro CAM_VIEW_DEFAULT_H 1008
+#macro CAM_VIEW_FAR_W     2304
+#macro CAM_VIEW_FAR_H     1296
+
+// ── BattleRoom — Estados ──────────────────────────────────────
+//  Máquina de estados usada por obj_battleroom_parent para coordinar
+//  el flujo completo de una BattleRoom normal (activación → spawn →
+//  combate → limpieza → recompensa opcional → fin).
+enum BattleRoomState {
+    WAITING,   // 0 — sala inactiva; el jugador puede avanzar libremente
+    ENTERING,  // 1 — trigger pidió iniciar; preparar cámara/bloqueos/música
+    SPAWNING,  // 2 — creando enemigos desde spawn markers
+    ACTIVE,    // 3 — combate en curso, esperando enemy_alive_count == 0
+    CLEARING,  // 4 — enemigos derrotados; liberar bloqueos/cámara/música
+    REWARD,    // 5 — estado opcional para crear recompensa
+    FINISHED   // 6 — sala completada; no debe reactivarse
+}
+
+// ── BattleRoom — Modo de bounds de cámara ─────────────────────
+//  Independiente de CameraViewMode (que es el ZOOM/tamaño de vista).
+//  Este enum decide si la BattleRoom limita el ÁREA visible de la cámara
+//  a la arena, no cuánto zoom aplica.
+enum BattleRoomCameraBoundsMode {
+    DEFAULT,         // 0 — sin lock: la cámara usa los bounds normales del room
+    LOCK_TO_ARENA,   // 1 — cámara limitada a arena_left/right/top/bottom
+    CENTER_ON_ARENA  // 2 — reservado; hoy se comporta como LOCK_TO_ARENA (ver battleroom_apply_camera)
+}
+
+// ── Cámara — offset y look-ahead ──────────────────────────────
+//  Con DEFAULT 1792×1008 y personaje de 150 px visible:
+//    sin offset → personaje a 50 % (centrado)
+//    −126 px   → personaje a 630/1008 = 62.5 % desde arriba ✓
+#macro CAM_OFFSET_Y   -126    // px — jugador en tercio inferior (vista DEFAULT 1792×1008)
+#macro CAM_LOOKAHEAD   224    // px — look-ahead horizontal (1792 × 0.125)
 
 // ── Tiles ──────────────────────────────────────────────────────
 #macro TILE_SIZE          64   // tamaño visual de tile — NO cambiar al migrar colisión
