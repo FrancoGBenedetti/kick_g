@@ -65,9 +65,27 @@ enum BattleRoomState {
 //  Este enum decide si la BattleRoom limita el ÁREA visible de la cámara
 //  a la arena, no cuánto zoom aplica.
 enum BattleRoomCameraBoundsMode {
-    DEFAULT,         // 0 — sin lock: la cámara usa los bounds normales del room
-    LOCK_TO_ARENA,   // 1 — cámara limitada a arena_left/right/top/bottom
-    CENTER_ON_ARENA  // 2 — reservado; hoy se comporta como LOCK_TO_ARENA (ver battleroom_apply_camera)
+    DEFAULT,              // 0 — sin lock: la cámara usa los bounds normales del room
+    LOCK_TO_ARENA,        // 1 — cámara limitada a arena_left/right/top/bottom (config manual)
+    CENTER_ON_ARENA,      // 2 — cámara centrada en BattleRoom (x,y) CON bounds-lock; los
+                           //     bordes salen de la vista de cámara objetivo (ver
+                           //     battleroom_get_target_camera_bounds), NO de arena_*
+    CENTER_ON_BATTLEROOM  // 3 — SOLO centra la cámara en BattleRoom (x,y): cambia el
+                           //     target de seguimiento, sin bounds-lock, sin arena, sin
+                           //     walls. El modo más simple — usar para probar el
+                           //     centrado de cámara aislado de todo lo demás.
+}
+
+// ── BattleRoom — Modo de cálculo de bounds de arena ───────────
+//  RELATIVE_TO_OBJECT (default): arena_left/right/top/bottom se calculan
+//  cada vez desde la posición (x,y) de la instancia de BattleRoom +
+//  arena_width/height/offset — el objeto ES el centro de la arena.
+//  MANUAL: arena_left/right/top/bottom se respetan tal cual estén
+//  configurados (coordenadas absolutas) — compatibilidad con BattleRooms
+//  armadas antes de este modo.
+enum BattleRoomArenaBoundsMode {
+    RELATIVE_TO_OBJECT,   // 0 — default
+    MANUAL                 // 1 — arena_left/right/top/bottom son la config real
 }
 
 // ── Cámara — offset y look-ahead ──────────────────────────────

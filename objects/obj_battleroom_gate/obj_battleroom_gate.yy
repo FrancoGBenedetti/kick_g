@@ -1,19 +1,20 @@
 {
   "$GMObject":"",
-  "%Name":"obj_battleroom_first_golem",
+  "%Name":"obj_battleroom_gate",
   "eventList":[
     {"$GMEvent":"v1","%Name":"","collisionObjectId":null,"eventNum":0,"eventType":0,"isDnD":false,"name":"","resourceType":"GMEvent","resourceVersion":"2.0",},
+    {"$GMEvent":"v1","%Name":"","collisionObjectId":null,"eventNum":0,"eventType":8,"isDnD":false,"name":"","resourceType":"GMEvent","resourceVersion":"2.0",},
   ],
   "managed":true,
-  "name":"obj_battleroom_first_golem",
+  "name":"obj_battleroom_gate",
   "overriddenProperties":[],
   "parent":{
     "name":"BattleRooms",
     "path":"folders/Objects/BattleRooms.yy",
   },
   "parentObjectId":{
-    "name":"obj_battleroom_parent",
-    "path":"objects/obj_battleroom_parent/obj_battleroom_parent.yy",
+    "name":"obj_dynamic_solid_parent",
+    "path":"objects/obj_dynamic_solid_parent/obj_dynamic_solid_parent.yy",
   },
   "persistent":false,
   "physicsAngularDamping":0.1,
@@ -32,7 +33,10 @@
   "resourceType":"GMObject",
   "resourceVersion":"2.0",
   "solid":false,
-  "spriteId":null,
+  "spriteId":{
+    "name":"spr_battleroom_gate_debug",
+    "path":"sprites/spr_battleroom_gate_debug/spr_battleroom_gate_debug.yy",
+  },
   "spriteMaskId":null,
   "visible":false,
 }

@@ -10,19 +10,39 @@ if (!instance_exists(target)) {
 
 // ── Actualizar límites del room ───────────────────────────
 // Si hay un override activo (BattleRoom limitando la cámara a una arena),
-// usar esos bounds completos en vez de recalcular desde room_width/height.
-// Sin override, comportamiento normal sin cambios: por si el room cambia
-// dinámicamente (rooms procedurales, expansión de nivel), bounds_right/
-// bounds_bottom siguen recalculándose cada frame; bounds_left/bounds_top
-// pueden sobreescribirse antes de este punto para zonas bloqueadas.
+// el TARGET es esos bounds; si no, el target es el room completo (mismo
+// comportamiento de siempre: bounds_right/bounds_bottom recalculados cada
+// frame por si el room cambia dinámicamente). En vez de asignar el target
+// de golpe, se interpola desde bounds_from_* durante
+// bounds_transition_timer frames (arrancado por camera_set_bounds_override/
+// camera_clear_bounds_override) — evita el salto brusco de cámara al
+// activar/desactivar el lock de una BattleRoom.
+var _target_bounds_left, _target_bounds_top, _target_bounds_right, _target_bounds_bottom;
+
 if (camera_bounds_override_enabled) {
-    bounds_left   = camera_bounds_left;
-    bounds_top    = camera_bounds_top;
-    bounds_right  = camera_bounds_right;
-    bounds_bottom = camera_bounds_bottom;
+    _target_bounds_left   = camera_bounds_left;
+    _target_bounds_top    = camera_bounds_top;
+    _target_bounds_right  = camera_bounds_right;
+    _target_bounds_bottom = camera_bounds_bottom;
 } else {
-    bounds_right  = room_width;
-    bounds_bottom = room_height;
+    _target_bounds_left   = 0;
+    _target_bounds_top    = 0;
+    _target_bounds_right  = room_width;
+    _target_bounds_bottom = room_height;
+}
+
+if (bounds_transition_timer > 0) {
+    var _bt = 1 - (bounds_transition_timer / bounds_transition_duration);
+    bounds_left   = lerp(bounds_from_left,   _target_bounds_left,   _bt);
+    bounds_top    = lerp(bounds_from_top,    _target_bounds_top,    _bt);
+    bounds_right  = lerp(bounds_from_right,  _target_bounds_right,  _bt);
+    bounds_bottom = lerp(bounds_from_bottom, _target_bounds_bottom, _bt);
+    bounds_transition_timer--;
+} else {
+    bounds_left   = _target_bounds_left;
+    bounds_top    = _target_bounds_top;
+    bounds_right  = _target_bounds_right;
+    bounds_bottom = _target_bounds_bottom;
 }
 
 // ── Zoom: interpolación de dimensiones ────────────────────

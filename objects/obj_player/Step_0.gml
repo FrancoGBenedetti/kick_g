@@ -18,6 +18,32 @@ if (!is_dead && y > room_height + 200) {
 }
 
 // ══════════════════════════════════════════════════════════
+// INPUT-ONLY LOCK — neutraliza global.inp ANTES de que se lea
+// ══════════════════════════════════════════════════════════
+// obj_player es el único consumidor de global.inp en el proyecto, así que
+// alcanza con pisar estos campos acá una vez por frame — no hace falta
+// tocar cada punto de lectura suelto más abajo (block/ataque/arco/dash/
+// salto/mover). NO se toca velocidad, estado, gravedad ni timers: si el
+// player venía cayendo, dasheando o rolleando, sigue igual (esas ramas del
+// state machine usan estado ya existente, no input fresco — ver DASH/
+// roll_active más abajo). Dos lecturas de teclado crudas (roll, línea con
+// keyboard_check_pressed(ord("A"))) están fuera de global.inp y se
+// bloquean aparte, en su propio punto.
+if (input_only_lock) {
+    global.inp.move_axis      = 0;
+    global.inp.jump_pressed   = false;
+    global.inp.dash_pressed   = false;
+    global.inp.attack_pressed = false;
+    global.inp.ranged_pressed = false;
+    global.inp.ranged_held    = false;
+    global.inp.ranged_released = false;
+    global.inp.block_pressed  = false;
+    global.inp.block_held     = false;
+    global.inp.aim_up_held    = false;
+    global.inp.aim_down_held  = false;
+}
+
+// ══════════════════════════════════════════════════════════
 // SECCIÓN ALWAYS — corre cada real-frame (60fps constantes)
 // Solo eventos one-shot que no pueden perderse en frame-skips
 // y control del time_scale.
@@ -620,7 +646,7 @@ if (ability_dash && _want_dash && dashCooldownTimer == 0
 // ── ROLL DODGE: activación con tecla A ─────────────────────
 // Acción completamente separada del Dash.
 // Se activa presionando tecla A en suelo, mientras puede_rodar.
-if (keyboard_check_pressed(ord("A")) && player_can_roll()) {
+if (!input_only_lock && keyboard_check_pressed(ord("A")) && player_can_roll()) {
     start_roll();
 }
 
@@ -1321,6 +1347,13 @@ if (damage_recovery_lock_timer > 0) damage_recovery_lock_timer--;
 // Cuando damage_recovery_lock_timer llega a 0, limpiar lock
 if (damage_recovery_lock && damage_recovery_lock_timer <= 0) {
     damage_recovery_lock = false;
+}
+// input_only_lock_timer es solo el techo de seguridad — quien activa el
+// lock (hoy, obj_battleroom_parent) debería limpiar input_only_lock a
+// mano apenas termine su motivo. Esto es el fallback si no lo hace.
+if (input_only_lock_timer > 0) input_only_lock_timer--;
+if (input_only_lock && input_only_lock_timer <= 0) {
+    input_only_lock = false;
 }
 // Contraataque: ventana gated (respeta time_scale → más tiempo durante slow-mo)
 // counterattack_timer se decrementa en ALWAYS (sección real-time) para que el

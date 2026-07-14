@@ -882,6 +882,23 @@ var _cfg_recovery = variable_global_exists("current_config") ? global.current_co
 };
 damage_recovery_lock_duration = _cfg_recovery.damage_recovery_lock_duration;  // configurable por dificultad
 
+// ── Bloqueo de SOLO input (sin tocar física) ──────────────
+// Distinto de damage_recovery_lock: ese frena vel_x activamente (ver
+// Step_0.gml). input_only_lock NO toca velocidad/estado/gravedad — solo
+// evita que el player LEA input nuevo (mover, saltar, dash, atacar,
+// bloquear, apuntar) por unos frames, ver Step_0.gml sección ALWAYS. Si
+// venía cayendo, dasheando o rolleando, sigue exactamente igual: esas
+// ramas del state machine se resuelven con estado ya existente
+// (player_state/roll_active/facing), no con input fresco.
+// Pensado para lo usa obj_battleroom_parent durante el intro de cámara
+// (battleroom_lock_player_input_for_camera) — no es de uso exclusivo de
+// BattleRoom, pero hoy es el único caller.
+// input_only_lock_timer es un techo de seguridad (se autolimpia si nadie
+// lo libera a mano) — quien lo activa debería poner input_only_lock=false
+// explícitamente apenas termine su motivo, sin esperar al timer.
+input_only_lock       = false;
+input_only_lock_timer = 0;
+
 // ── Funciones helper para verificar si el player puede actuar ──
 player_can_move = function() {
     return !damage_recovery_lock && !is_dead;
