@@ -77,11 +77,12 @@
   "isEcma":false,
   "LibraryEmitters":[],
   "MetaData":{
-    "IDEVersion":"2024.14.4.222",
+    "IDEVersion":"2026.0.0.16",
   },
   "name":"kick_g",
   "resources":[
     {"id":{"name":"obj_actor_parent","path":"objects/obj_actor_parent/obj_actor_parent.yy",},},
+    {"id":{"name":"obj_battleroom_bridge_trigger","path":"objects/obj_battleroom_bridge_trigger/obj_battleroom_bridge_trigger.yy",},},
     {"id":{"name":"obj_battleroom_gate","path":"objects/obj_battleroom_gate/obj_battleroom_gate.yy",},},
     {"id":{"name":"obj_battleroom_parent","path":"objects/obj_battleroom_parent/obj_battleroom_parent.yy",},},
     {"id":{"name":"obj_battleroom_spawn_bridge_golem","path":"objects/obj_battleroom_spawn_bridge_golem/obj_battleroom_spawn_bridge_golem.yy",},},
@@ -141,6 +142,8 @@
     {"id":{"name":"scr_time_manager","path":"scripts/scr_time_manager/scr_time_manager.yy",},},
     {"id":{"name":"tile_solid_at","path":"scripts/tile_solid_at/tile_solid_at.yy",},},
     {"id":{"name":"big_floor","path":"sprites/big_floor/big_floor.yy",},},
+    {"id":{"name":"spr_battleroom_bridge_broken","path":"sprites/spr_battleroom_bridge_broken/spr_battleroom_bridge_broken.yy",},},
+    {"id":{"name":"spr_battleroom_bridge_intact","path":"sprites/spr_battleroom_bridge_intact/spr_battleroom_bridge_intact.yy",},},
     {"id":{"name":"spr_battleroom_gate_debug","path":"sprites/spr_battleroom_gate_debug/spr_battleroom_gate_debug.yy",},},
     {"id":{"name":"spr_enemy_spider_attack_1","path":"sprites/spr_enemy_spider_attack_1/spr_enemy_spider_attack_1.yy",},},
     {"id":{"name":"spr_enemy_spider_attack","path":"sprites/spr_enemy_spider_attack/spr_enemy_spider_attack.yy",},},
