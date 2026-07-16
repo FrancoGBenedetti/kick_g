@@ -50,14 +50,19 @@ global.debug_counterattack = false;   // activar en runtime o setear true aquí
 global.debug_air_sword_bounce = false; // activar en runtime o setear true aquí
 // Super energy debug — muestra medidor, ganancias y flags de habilidad
 global.debug_super_energy    = false;  // activar en runtime o setear true aquí
-// Debug collision view — modo debug de colisión activado con tecla H
+// Debug collision view — modo debug de colisión activado con tecla Y
 // Muestra: tiles de colisión, bbox del player, hitboxes de enemigos, etc.
-global.debug_collision_view = false; // false = normal gameplay (default)
+// TEMP: en true por pedido explícito — collision tiles/objetos visibles
+// todo el tiempo mientras se ajustan manualmente triggers/gates en el
+// Room Editor. Volver a false antes de shipping (o dejar en false y usar
+// Y/I en runtime — el toggle sigue funcionando igual).
+global.debug_collision_view = true;
 
 // ── Inicializar debug collision view ──────────────────────
-// La capa de colisión se oculta al inicio del room.
-// Se puede mostrar/ocultar durante gameplay con tecla 5 (modo dev).
-global.debug_collision_view = false;
+// Aplica la visibilidad de la capa de colisión según global.debug_
+// collision_view de arriba. Se puede togglear en runtime con Y (debug
+// visual completo) o I (solo la capa de colisión) — ver obj_time_manager
+// Step_0.gml.
 scr_hide_collision_layer();
 
 // ── Inicializar sistema de dificultad ──────────────────────

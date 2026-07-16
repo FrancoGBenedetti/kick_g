@@ -2,9 +2,11 @@
 // solo sirve para posicionar/escalar en el Room Editor (visible=false en
 // Create), así que acá se dibuja el rectángulo de colisión REAL
 // (dynamic_solid_xoff/yoff/w/h) — coincide exactamente con lo que bloquea.
-// Si el debug está apagado no dibuja nada, ni siquiera si el gate está
-// activo (misma convención que obj_battleroom_wall).
-if (!gate_is_debug()) exit;
+// Si el debug está apagado no dibuja nada, salvo que show_collision_debug
+// de ESTA instancia esté en true (ajustable por Creation Code, ver
+// obj_dynamic_solid_parent) — fuerza visible para poder ajustar un gate
+// puntual a mano aunque el resto del debug esté apagado.
+if (!gate_is_debug() && !show_collision_debug) exit;
 
 var _x1 = x + dynamic_solid_xoff;
 var _y1 = y + dynamic_solid_yoff;
