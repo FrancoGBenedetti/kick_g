@@ -8,7 +8,7 @@
     "TileSerialiseData":[],
   },
   "name":"ts_castle_demo_back",
-  "out_columns":33,
+  "out_columns":32,
   "out_tilehborder":2,
   "out_tilevborder":2,
   "parent":{
@@ -18,8 +18,8 @@
   "resourceType":"GMTileSet",
   "resourceVersion":"2.0",
   "spriteId":{
-    "name":"spr_tiles_visual_castle_demo_back",
-    "path":"sprites/spr_tiles_visual_castle_demo_back/spr_tiles_visual_castle_demo_back.yy",
+    "name":"spr_tiles_visual_castle_demo_draw",
+    "path":"sprites/spr_tiles_visual_castle_demo_draw/spr_tiles_visual_castle_demo_draw.yy",
   },
   "spriteNoExport":false,
   "textureGroupId":{
@@ -34,5 +34,5 @@
   "tileWidth":32,
   "tilexoff":0,
   "tileyoff":0,
-  "tile_count":1089,
+  "tile_count":1024,
 }
