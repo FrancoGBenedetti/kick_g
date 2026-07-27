@@ -29,7 +29,7 @@ function scr_difficulty_config() {
 		parry_cooldown_max:          20,    // cooldown entre parries
 
 		// ─ PLAYER: Damage & Recovery ─────────────────────────────────
-		player_max_hp:               2,     // max HP (muere en 3 golpes con 1 HP/golpe actual)
+		player_max_hp:               PLAYER_MAX_HEALTH,
 		player_default_invuln:       90,    // frames de invulnerabilidad post-daño (~1.5s)
 		player_hitstun:              20,    // frames de hitstun
 		player_knockback_x:          24,    // empuje horizontal
@@ -55,7 +55,7 @@ function scr_difficulty_config() {
 		parry_cooldown_max:          ceil(global.config.normal.parry_cooldown_max * 0.8),    // 16
 
 		// ─ PLAYER: Recovery más rápida ───────────────────────────────
-		player_max_hp:               global.config.normal.player_max_hp,  // 2 (muere en 3 golpes)
+		player_max_hp:               global.config.normal.player_max_hp,
 		player_default_invuln:       ceil(global.config.normal.player_default_invuln * 0.65), // 58
 		player_hitstun:              ceil(global.config.normal.player_hitstun * 0.75),        // 15
 		player_knockback_x:          global.config.normal.player_knockback_x,
@@ -84,7 +84,7 @@ function scr_difficulty_config() {
 		// Hard debe ser menos dureza que normal → más difícil morir
 		// NOTA: Si normal "muere en 3 golpes", hard con max_hp=1 "muere en 1 golpe"
 		// Por eso hard tiene el mismo max_hp que normal por ahora
-		player_max_hp:               1,     // max HP (muere más rápido que normal)
+		player_max_hp:               50,    // 50 % de la vida normal
 		player_default_invuln:       global.config.normal.player_default_invuln,
 		player_hitstun:              global.config.normal.player_hitstun,
 		player_knockback_x:          global.config.normal.player_knockback_x,
@@ -163,8 +163,10 @@ function apply_difficulty_to_existing_objects() {
 			counter_window_max = global.current_config.parry_counter_window;
 
 			// HP y invulnerabilidad
-			max_hp = global.current_config.player_max_hp;
-			// NO cambiar hp actual para no matar/curar instantáneamente
+			max_health = global.current_config.player_max_hp;
+			health = clamp(health, 0, max_health);
+			max_hp = max_health;
+			hp = health;
 			default_invuln = global.current_config.player_default_invuln;
 			default_hitstun = global.current_config.player_hitstun;
 			damage_recovery_lock_duration = global.current_config.damage_recovery_lock_duration;

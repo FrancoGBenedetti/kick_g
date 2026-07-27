@@ -849,13 +849,25 @@ player_state = PSTATE.FALL;
 // por dificultad vía global.current_config. Los valores aquí son fallback.
 
 var _cfg_hp = variable_global_exists("current_config") ? global.current_config : {
-	player_max_hp: 2,
+	player_max_hp: PLAYER_MAX_HEALTH,
 	player_default_invuln: 90,
 	player_hitstun: 20
 };
 
-max_hp = _cfg_hp.player_max_hp;        // configurables por dificultad
-hp     = max_hp;
+max_health = _cfg_hp.player_max_hp;
+health     = max_health;
+max_hp     = max_health;  // compatibilidad con obj_actor_parent
+hp         = health;
+
+max_mana = PLAYER_MAX_MANA;
+mana     = 0;
+
+max_arrows = PLAYER_MAX_ARROWS;
+arrows     = PLAYER_INITIAL_ARROWS;
+
+hud_mana_gain_amount = 0;
+hud_mana_gain_timer  = 0;
+hud_no_arrows_timer  = 0;
 
 // Override de i-frames: el jugador tiene más tiempo de invulnerabilidad.
 // Nota: la variable canónica es default_invuln (renombrada desde invulnerability_max).
@@ -975,6 +987,7 @@ player_can_bow = function() {
 //   2. Cancelar modo de apuntado aéreo del arco
 //   3. DEBUG — confirmar daño recibido (quitar cuando el sistema esté validado)
 on_damage = function(_amount, _source) {
+    health = hp;
     // ── Cancelar dash si estaba activo ────────────────────────
     // El knockback sobreescribe move_x durante hitstun, pero necesitamos
     // cancelar el estado DASH para que la física no lo mantenga activo.
@@ -1183,8 +1196,8 @@ take_damage = function(_amount, _source) {
         parry_active         = false;
         parry_cooldown_timer = PARRY_COOLDOWN_MAX;
 
-        // ── Energía por parry ─────────────────────────────
-        gain_super_energy(parry_energy_gain);
+        // ── Maná por parry confirmado ─────────────────────
+        player_add_mana(id, MANA_GAIN_PARRY);
 
         // ── Carga para golpe fuerte (Beat 'em Up) ─────────
         beat_heavy_charge += beat_parry_charge_gain;
@@ -1553,9 +1566,9 @@ function update_beat_em_up_hitbox(_damage, _reach, _height, _offset_y, _cooldown
     // Es un golpe ligero si beat_em_up_attack_type == "punch"
     var _is_light_punch = (beat_em_up_attack_type == "punch");
 
-    // Detectar y dañar enemigos espadachín en el área
-    if (instance_exists(obj_enemy_swordsman)) {
-        with (obj_enemy_swordsman) {
+    // El parent cubre swordsman, archer, spider, golem y futuros enemigos.
+    if (instance_exists(obj_enemy_parent)) {
+        with (obj_enemy_parent) {
             if (instance_exists(id) && !is_invulnerable &&
                 bbox_left < _hb_x2 && bbox_right > _hb_x1 &&
                 bbox_top < _hb_y2 && bbox_bottom > _hb_y1) {
@@ -1566,7 +1579,10 @@ function update_beat_em_up_hitbox(_damage, _reach, _height, _offset_y, _cooldown
                     // Primer hit a este enemigo en este ataque
                     ds_list_add(_player_id.beat_em_up_enemies_hit, id);
 
-                    // Cargar energía solo si es golpe ligero
+                    // Todo golpe de boxeo recupera maná una vez por enemigo.
+                    player_add_mana(_player_id, MANA_GAIN_BOXING_HIT);
+
+                    // Cargar heavy solo si es golpe ligero.
                     if (_is_light_punch) {
                         _player_id.beat_heavy_charge += _player_id.beat_light_hit_charge_gain;
                         _player_id.beat_heavy_charge = clamp(_player_id.beat_heavy_charge, 0, _player_id.beat_heavy_charge_max);
@@ -1588,40 +1604,6 @@ function update_beat_em_up_hitbox(_damage, _reach, _height, _offset_y, _cooldown
         }
     }
 
-    // Detectar y dañar enemigos arquero en el área
-    if (instance_exists(obj_enemy_archer)) {
-        with (obj_enemy_archer) {
-            if (instance_exists(id) && !is_invulnerable &&
-                bbox_left < _hb_x2 && bbox_right > _hb_x1 &&
-                bbox_top < _hb_y2 && bbox_bottom > _hb_y1) {
-                // Verificar si ya fue golpeado en este ataque
-                var _already_hit = ds_list_find_index(_player_id.beat_em_up_enemies_hit, id) != -1;
-
-                if (!_already_hit) {
-                    // Primer hit a este enemigo en este ataque
-                    ds_list_add(_player_id.beat_em_up_enemies_hit, id);
-
-                    // Cargar energía solo si es golpe ligero
-                    if (_is_light_punch) {
-                        _player_id.beat_heavy_charge += _player_id.beat_light_hit_charge_gain;
-                        _player_id.beat_heavy_charge = clamp(_player_id.beat_heavy_charge, 0, _player_id.beat_heavy_charge_max);
-                        if (_player_id.beat_heavy_charge >= _player_id.beat_heavy_charge_max) {
-                            _player_id.beat_heavy_unlocked = true;
-                            show_debug_message("[BEAT-CHARGE] HEAVY READY - charge = " + string(_player_id.beat_heavy_charge));
-                        } else {
-                            show_debug_message("[BEAT-CHARGE] +1 punch - charge = " + string(_player_id.beat_heavy_charge) + "/" + string(_player_id.beat_heavy_charge_max));
-                        }
-                    }
-                }
-
-                take_damage(_damage, _player_id);  // _player_id = source del daño
-                if (_kb_hsp != 0 || _kb_vsp != 0) {
-                    vel_x = _kb_hsp;
-                    vel_y = _kb_vsp;
-                }
-            }
-        }
-    }
 }
 ;
 

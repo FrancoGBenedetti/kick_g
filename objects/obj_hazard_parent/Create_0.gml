@@ -23,6 +23,7 @@ hazard_apply_to_player = function(_player) {
     if (hazard_kill_player) {
         with (_player) {
             hp = 0;
+            health = 0;
             die();
         }
     } else {

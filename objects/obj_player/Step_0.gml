@@ -13,6 +13,7 @@ if (!is_dead && y > room_height + 200) {
     show_debug_message("[DBG] PLAYER DIED - FALL  y=" + string(y)
         + "  room_h=" + string(room_height));
     hp = 0;
+    health = 0;
     die();
     exit;
 }
@@ -177,7 +178,8 @@ if (global.inp.attack_pressed && ability_sword && !_bow_busy && !_block_busy
 // Dash cancel → arco:
 //   Si el jugador está en PSTATE.DASH al presionar arco, el dash se cancela
 //   inmediatamente y el arco comienza. Funciona en suelo y en aire.
-if (global.inp.ranged_pressed && ability_bow && !_bow_busy && bow_cooldown_timer <= 0
+if (global.inp.ranged_pressed && ability_bow && arrows >= ARROW_COST
+    && !_bow_busy && bow_cooldown_timer <= 0
     && action_lock_timer <= 0 && !_block_busy && !beat_em_up_active
     && player_state != PSTATE.WALL && player_can_bow()) {
 
@@ -206,6 +208,9 @@ if (global.inp.ranged_pressed && ability_bow && !_bow_busy && bow_cooldown_timer
         saved_facing = facing;
         aim_facing   = facing;
     }
+} else if (global.inp.ranged_pressed && arrows < ARROW_COST) {
+    hud_no_arrows_timer = 30;
+    show_debug_message("[BOW] Sin flechas");
 } else if (global.inp.ranged_pressed && !_bow_busy) {
     if (action_lock_timer > 0
     && variable_global_exists("debug_collision") && global.debug_collision) {
@@ -401,7 +406,7 @@ if (bow_release_pending && !_in_attack) {
         + "  is_aiming=" + string(is_aiming)
         + "  isGrounded=" + string(isGrounded));
 
-    if (bow_charge_timer >= bow_min_charge_frames) {
+    if (bow_charge_timer >= bow_min_charge_frames && arrows >= ARROW_COST) {
         // ── DISPARO ───────────────────────────────────────
         // Carga mínima alcanzada → crear flecha.
         var _charge_level;
@@ -421,37 +426,34 @@ if (bow_release_pending && !_in_attack) {
         var _spawn_y = y + PLAYER_CHEST_Y;   // altura de pecho (scr_config)
         var _arrow   = instance_create_layer(_spawn_x, _spawn_y, "Instances_1", obj_player_arrow);
 
-        // ── Velocidad con ángulo ──────────────────────────
-        // Descomponer arrow_speed en componentes X e Y usando aim_angle.
-        // Convención: aim_angle < 0 = arriba, > 0 = abajo (coord. pantalla).
-        //   vel_x = facing * speed * cos(angle)  →  componente horizontal
-        //   vel_y = speed * sin(angle)            →  componente vertical
-        // facing solo afecta vel_x, por lo que aim_angle sube/baja igual
-        // en ambas direcciones (↑ siempre es arriba sin importar facing).
-        var _rad = degtorad(aim_angle);
-        _arrow.vel_x = _fire_facing * _arrow.arrow_speed * cos(_rad);
-        _arrow.vel_y = _arrow.arrow_speed * sin(_rad);
+        if (instance_exists(_arrow)) {
+            player_add_arrows(id, -ARROW_COST);
 
-        _arrow.charge_level = _charge_level;
-        _arrow.is_aerial    = !isGrounded;
-        _arrow.owner        = id;
-        if      (_charge_level == 2) { _arrow.damage = 3; }
-        else if (_charge_level == 1) { _arrow.damage = 2; }
-        else                         { _arrow.damage = 1; }
+            // ── Velocidad con ángulo ──────────────────────────
+            var _rad = degtorad(aim_angle);
+            _arrow.vel_x = _fire_facing * _arrow.arrow_speed * cos(_rad);
+            _arrow.vel_y = _arrow.arrow_speed * sin(_rad);
 
-        // DEBUG — confirma spawn, ángulo y velocidades
-        show_debug_message("[DBG-BOW] FIRED: charge=" + string(_charge_level)
-            + "  aim_angle=" + string(aim_angle)
-            + "  vel_x=" + string(_arrow.vel_x)
-            + "  vel_y=" + string(_arrow.vel_y)
-            + "  facing=" + string(_fire_facing));
+            _arrow.charge_level = _charge_level;
+            _arrow.is_aerial    = !isGrounded;
+            _arrow.owner        = id;
+            if      (_charge_level == 2) { _arrow.damage = 3; }
+            else if (_charge_level == 1) { _arrow.damage = 2; }
+            else                         { _arrow.damage = 1; }
 
-        // Iniciar cooldown — impide empezar otra carga inmediatamente.
-        bow_cooldown_timer = bow_cooldown_frames;
+            show_debug_message("[DBG-BOW] FIRED: charge=" + string(_charge_level)
+                + "  aim_angle=" + string(aim_angle)
+                + "  vel_x=" + string(_arrow.vel_x)
+                + "  vel_y=" + string(_arrow.vel_y)
+                + "  facing=" + string(_fire_facing));
+
+            bow_cooldown_timer = bow_cooldown_frames;
+        }
 
     }
-    // Si bow_charge_timer < bow_min_charge_frames: cancelación silenciosa,
-    // sin flecha y sin cooldown. El jugador puede reintentar de inmediato.
+    // Si la carga es insuficiente o no hay flechas: cancelación sin proyectil
+    // ni cooldown. El inicio de carga ya bloquea el caso normal sin munición;
+    // este guard protege cambios externos de inventario durante la carga.
 
     // ── Restaurar aim y limpiar estado de carga ───────────
     if (is_aiming) {

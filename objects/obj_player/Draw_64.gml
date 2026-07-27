@@ -6,10 +6,10 @@
 // de la pantalla, independiente de la cámara).
 //
 // Contenido actual:
-//   • Barra de vida con fondo, relleno y texto HP x/max
+//   • Barra de vida y maná en la esquina superior izquierda.
+//   • Icono fijo de flechas y munición actual.
 //
 // Futuro:
-//   • Contador de flechas / munición
 //   • Icono de dash disponible
 //   • Indicador de carga del arco
 // ══════════════════════════════════════════════════════════
@@ -20,6 +20,7 @@ var _bar_x = 48;
 var _bar_y = 48;
 var _bar_w = 300;
 var _bar_h = 28;
+var _mana_y = _bar_y + _bar_h + 8;
 
 // ── Borde exterior de la barra ────────────────────────────
 var _prev_color = draw_get_color();
@@ -34,7 +35,7 @@ draw_rectangle(_bar_x - 2, _bar_y - 2, _bar_x + _bar_w + 2, _bar_y + _bar_h + 2,
 scr_draw_healthbar(
     _bar_x, _bar_y,
     _bar_w, _bar_h,
-    hp, max_hp,
+    health, max_health,
     make_color_rgb( 50,  10,  10),   // fondo — rojo muy oscuro
     make_color_rgb(220,  40,  40)    // relleno — rojo
 );
@@ -46,7 +47,46 @@ draw_set_color(c_white);
 draw_set_halign(fa_left);
 draw_set_valign(fa_middle);
 draw_text(_bar_x + 6, _bar_y + _bar_h * 0.5,
-          "HP  " + string(hp) + " / " + string(max_hp));
+          "HP  " + string(health) + " / " + string(max_health));
+
+// ── Barra de maná ────────────────────────────────────────
+// Comparte posición, ancho y borde con HP para leerse como un solo HUD.
+draw_set_alpha(0.85);
+draw_set_color(c_black);
+draw_rectangle(_bar_x - 2, _mana_y - 2, _bar_x + _bar_w + 2, _mana_y + _bar_h + 2, true);
+
+scr_draw_healthbar(
+    _bar_x, _mana_y,
+    _bar_w, _bar_h,
+    mana, max_mana,
+    make_color_rgb( 8,  18,  55),   // fondo azul oscuro
+    make_color_rgb(35, 100, 235)    // relleno azul
+);
+
+draw_set_alpha(1);
+draw_set_color(c_white);
+draw_set_halign(fa_left);
+draw_set_valign(fa_middle);
+draw_text(_bar_x + 6, _mana_y + _bar_h * 0.5,
+          "MP  " + string(mana) + " / " + string(max_mana));
+
+// ── Flechas ──────────────────────────────────────────────
+// El mismo arte del pickup se usa como icono fijo de inventario.
+var _arrow_icon_x = _bar_x + _bar_w + 34;
+var _arrow_icon_y = _mana_y + _bar_h;
+var _arrow_color = arrows < ARROW_COST ? c_red : c_white;
+
+draw_set_alpha(1);
+draw_set_color(c_white);
+draw_sprite_ext(spr_pickup_arrows, 0, _arrow_icon_x, _arrow_icon_y,
+                0.06, 0.06, 0, c_white, 1);
+
+draw_set_color(c_black);
+draw_set_halign(fa_left);
+draw_set_valign(fa_middle);
+draw_text(_arrow_icon_x + 30, _arrow_icon_y - 18, "x " + string(arrows));
+draw_set_color(_arrow_color);
+draw_text(_arrow_icon_x + 29, _arrow_icon_y - 19, "x " + string(arrows));
 
 // ── Restaurar estado de render ────────────────────────────
 draw_set_halign(fa_left);

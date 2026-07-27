@@ -1,0 +1,10 @@
+{
+  "$GMScript":"v1",
+  "%Name":"scr_player_resources",
+  "isCompatibility":false,
+  "isDnD":false,
+  "name":"scr_player_resources",
+  "parent":{"name":"Utility","path":"folders/Scripts/Utility.yy",},
+  "resourceType":"GMScript",
+  "resourceVersion":"2.0",
+}

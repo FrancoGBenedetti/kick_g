@@ -273,6 +273,21 @@ enum BattleRoomArenaBoundsMode {
 #macro ESWORDSMAN_COOLDOWN          90   // frames entre ataques
 #macro ESWORDSMAN_DAMAGE             1   // daño por golpe
 
+// ── Recursos del jugador ────────────────────────────────────────
+#macro PLAYER_MAX_HEALTH      100
+#macro PLAYER_MAX_MANA        100
+#macro PLAYER_INITIAL_ARROWS    0
+#macro PLAYER_MAX_ARROWS       20
+#macro MANA_GAIN_PARRY         20
+#macro MANA_GAIN_BOXING_HIT     5
+#macro ARROW_COST               1
+
+enum PlayerCombatStyle {
+    SWORD,
+    BOXING,
+    BOW
+}
+
 // ── Super Energy (mana / super meter) ────────────────────────────
 //  Recurso acumulado por golpes exitosos. Base para futuros super ataques.
 //
