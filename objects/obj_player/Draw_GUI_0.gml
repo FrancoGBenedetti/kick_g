@@ -66,6 +66,12 @@ if (beat_em_up_active) {
     draw_set_halign(fa_left);
     draw_set_valign(fa_middle);
     draw_text(_bar_x + _bar_w + 8, _bar_y + _bar_h / 2, "BEAT");
+
+    if (beat_combo_index >= 0) {
+        draw_set_color(c_yellow);
+        draw_text(_bar_x + _bar_w + 8, _bar_y + _bar_h + 16,
+                  "COMBO " + string(beat_combo_index + 1) + " / 4");
+    }
 }
 
 // ── HUD de dificultad (tecla 9) ──────────────────────────────

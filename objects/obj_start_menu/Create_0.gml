@@ -3,6 +3,7 @@ scr_input_ensure_globals();
 menu_index = 0;
 menu_mode = "main";
 remap_index = -1;
+menu_prev_axis = 0;
 
 menu_items = [
     "Etapa a jugar",
@@ -21,21 +22,19 @@ controller_actions = [
     { label: "Espada",       field: "gp_attack" },
     { label: "Arco",         field: "gp_ranged" },
     { label: "Block / Parry", field: "gp_block" },
+    { label: "Beat 'em Up",  field: "gp_beat_em_up" },
+    { label: "Gancho",       field: "gp_beat_heavy" },
     { label: "Pausa",        field: "gp_pause"  },
 ];
 
 menu_up_pressed = function() {
-    var _slot = global.keybinds.gp_slot;
     return keyboard_check_pressed(vk_up)
-        || keyboard_check_pressed(ord("W"))
-        || (gamepad_is_connected(_slot) && gamepad_button_check_pressed(_slot, gp_padu));
+        || keyboard_check_pressed(ord("W"));
 };
 
 menu_down_pressed = function() {
-    var _slot = global.keybinds.gp_slot;
     return keyboard_check_pressed(vk_down)
-        || keyboard_check_pressed(ord("S"))
-        || (gamepad_is_connected(_slot) && gamepad_button_check_pressed(_slot, gp_padd));
+        || keyboard_check_pressed(ord("S"));
 };
 
 menu_accept_pressed = function() {

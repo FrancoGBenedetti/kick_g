@@ -962,7 +962,7 @@ if (variable_global_exists("debug_dev") && global.debug_dev) {
     var _charge_y = _dbg_y + 96;
     draw_text(_dbg_x, _charge_y, "CHARGE: " + string(beat_heavy_charge) + "/" + string(beat_heavy_charge_max));
     draw_text(_dbg_x, _charge_y + 12, "  unlocked=" + string(beat_heavy_unlocked));
-    draw_text(_dbg_x, _charge_y + 24, "  light_gain=" + string(beat_light_hit_charge_gain) + " parry_gain=" + string(beat_parry_charge_gain));
+        draw_text(_dbg_x, _charge_y + 24, "  1 carga por golpe ejecutado");
 
     // ── SLOW MOTION DEBUG ──────────────────────────────────
     if (global.slowmo_active) {

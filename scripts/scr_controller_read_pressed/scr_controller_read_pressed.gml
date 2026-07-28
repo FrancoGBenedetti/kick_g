@@ -6,7 +6,7 @@ function scr_controller_read_pressed(_slot) {
 
     var _buttons = [
         gp_face1, gp_face2, gp_face3, gp_face4,
-        gp_shoulderl, gp_shoulderr,
+        gp_shoulderl, gp_shoulderr, gp_shoulderlb, gp_shoulderrb,
         gp_start, gp_select,
         gp_padu, gp_padd, gp_padl, gp_padr,
     ];

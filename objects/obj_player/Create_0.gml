@@ -162,7 +162,7 @@ beat_punch_height         = 75;              // altura del hitbox
 beat_punch_offset_y       = -80;             // altura relativa al player
 beat_punch_active_duration = 5;              // frames que la hitbox está activa
 beat_punch_cooldown       = 8;               // frames de espera entre punches
-beat_combo_index          = 0;               // 0-2 (3 golpes: punch 1/2/3)
+beat_combo_index          = -1;              // -1 = sin combo; 0-3 = jab, jab, rect, rect
 beat_combo_timer          = 0;               // timer para siguiente punch
 beat_combo_window         = 20;              // frames para siguiente punch en combo
 
@@ -191,14 +191,16 @@ beat_em_up_attack_type    = "";              // "punch", "heavy", "uppercut"
 beat_em_up_attack_active  = false;           // true mientras hitbox está activa
 beat_em_up_attack_timer   = 0;               // cuenta regresiva de hitbox
 beat_em_up_cooldown_timer = 0;               // cooldown global
+beat_punch_visual_timer   = 0;               // duración visual independiente de la hitbox
+beat_punch_restart        = false;
+beat_heavy_visual_timer   = 0;
+beat_heavy_restart        = false;
 
 // ── Carga de energía para golpe fuerte ────────────────────
-// Sistema de carga: 6 golpes ligeros o 1 parry desbloquea heavy punch
-beat_heavy_charge         = 0;               // carga actual (0 a 6)
-beat_heavy_charge_max     = 6;               // carga necesaria
+// Sistema de carga: 4 golpes ligeros o parries desbloquean el gancho fuerte.
+beat_heavy_charge         = 0;               // carga actual (0 a 4)
+beat_heavy_charge_max     = 4;               // carga necesaria
 beat_heavy_unlocked       = false;           // true cuando carga es máxima
-beat_light_hit_charge_gain = 1;              // carga por golpe ligero exitoso
-beat_parry_charge_gain     = 1;              // carga por parry exitoso
 beat_uppercut_enabled     = false;           // TEMP: desactivar uppercut por ahora
 
 // ── Debug visual: hitbox del ataque Beat 'em Up ───────────
@@ -1199,16 +1201,6 @@ take_damage = function(_amount, _source) {
         // ── Maná por parry confirmado ─────────────────────
         player_add_mana(id, MANA_GAIN_PARRY);
 
-        // ── Carga para golpe fuerte (Beat 'em Up) ─────────
-        beat_heavy_charge += beat_parry_charge_gain;
-        beat_heavy_charge = clamp(beat_heavy_charge, 0, beat_heavy_charge_max);
-        if (beat_heavy_charge >= beat_heavy_charge_max) {
-            beat_heavy_unlocked = true;
-            show_debug_message("[BEAT-CHARGE] HEAVY READY (parry) - charge = " + string(beat_heavy_charge));
-        } else {
-            show_debug_message("[BEAT-CHARGE] +1 parry - charge = " + string(beat_heavy_charge) + "/" + string(beat_heavy_charge_max));
-        }
-
         // ── Ventana de contraataque ───────────────────────
         // Se abre internamente aunque ability_counterattack = false.
         // El gate abajo limpia can_counterattack si la habilidad no está habilitada.
@@ -1410,7 +1402,7 @@ function update_roll() {
 function start_beat_em_up_mode() {
     beat_em_up_active = true;
     beat_em_up_timer = beat_em_up_duration;
-    beat_combo_index = 0;
+    beat_combo_index = -1;
     beat_combo_timer = 0;
     beat_em_up_cooldown_timer = 0;
     beat_em_up_attack_active = false;
@@ -1423,10 +1415,14 @@ function start_beat_em_up_mode() {
 function end_beat_em_up_mode() {
     beat_em_up_active = false;
     beat_em_up_timer = 0;
-    beat_combo_index = 0;
+    beat_combo_index = -1;
     beat_combo_timer = 0;
     beat_em_up_attack_active = false;
     beat_em_up_attack_type = "";
+    beat_punch_visual_timer = 0;
+    beat_punch_restart = false;
+    beat_heavy_visual_timer = 0;
+    beat_heavy_restart = false;
     combat_mode = "normal";
     beat_em_up_hitbox_visible = false;  // limpiar debug visual
     show_debug_message("[BEAT-EM-UP] Modo desactivado");
@@ -1441,31 +1437,33 @@ function end_beat_em_up_mode() {
 ///   3. X solo → Heavy Punch
 ///   4. Z → Punch Combo
 function update_beat_em_up_mode() {
-    if (!beat_em_up_active || beat_em_up_cooldown_timer > 0) return;
+    var _attack_in_progress = beat_em_up_attack_active
+                           || beat_punch_visual_timer > 0
+                           || beat_heavy_visual_timer > 0;
+    if (!beat_em_up_active || beat_em_up_cooldown_timer > 0 || _attack_in_progress) return;
 
     var _up = global.inp.move_axis < 0;   // arriba detectado
-    var _ranged_pressed = global.inp.ranged_pressed;  // X key (normalmente arco)
+    var _heavy_pressed = global.inp.beat_heavy_pressed;
 
     // ── Uppercut: Up + X ─────────────────────────────────────
     // TEMP: Desactivado hasta que se implemente nuevas combinaciones
-    if (_up && _ranged_pressed && beat_uppercut_enabled) {
+    if (_up && _heavy_pressed && beat_uppercut_enabled) {
         player_start_beat_uppercut();
         show_debug_message("[BEAT-UPPERCUT INPUT] Up + X pressed");
         return;
     }
 
     // ── Heavy Punch: X solo ───────────────────────────────────
-    if (_ranged_pressed) {
+    if (_heavy_pressed) {
         player_start_beat_heavy();
         show_debug_message("[BEAT-HEAVY INPUT] X pressed");
         return;
     }
 
-    // ── Punch Combo: Z ────────────────────────────────────────
+    // ── Punch Combo: jab, jab, rect, rect ─────────────────────
     if (global.inp.attack_pressed) {
-        // Incrementar combo solo si hay tiempo (dentro de combo window)
-        if (beat_combo_timer < beat_combo_window) {
-            beat_combo_index = (beat_combo_index + 1) mod 3;
+        if (beat_combo_index >= 0 && beat_combo_timer < beat_combo_window) {
+            beat_combo_index = (beat_combo_index + 1) mod 4;
         } else {
             beat_combo_index = 0;
         }
@@ -1476,12 +1474,24 @@ function update_beat_em_up_mode() {
 }
 
 /// @function player_start_beat_punch()
-/// @description Inicia un punch (del combo de 3 golpes)
+/// @description Inicia un punch (combo: jab, jab, rect, rect)
 function player_start_beat_punch() {
     beat_em_up_attack_type = "punch";
     beat_em_up_attack_active = true;
     beat_em_up_attack_timer = beat_punch_active_duration;
     beat_em_up_cooldown_timer = beat_punch_cooldown;
+    beat_punch_visual_timer = 24;  // 6 frames a image_speed 0.25
+    beat_punch_restart = true;
+
+    // Cada golpe ejecutado carga el gancho, incluso si no impacta a un enemigo.
+    beat_heavy_charge = clamp(beat_heavy_charge + 1, 0, beat_heavy_charge_max);
+    if (beat_heavy_charge >= beat_heavy_charge_max) {
+        beat_heavy_unlocked = true;
+        show_debug_message("[BEAT-CHARGE] HEAVY READY - charge = " + string(beat_heavy_charge));
+    } else {
+        show_debug_message("[BEAT-CHARGE] +1 punch - charge = "
+            + string(beat_heavy_charge) + "/" + string(beat_heavy_charge_max));
+    }
 
     // Limpiar enemigos golpeados en este ataque
     ds_list_clear(beat_em_up_enemies_hit);
@@ -1505,6 +1515,10 @@ function player_start_beat_heavy() {
     beat_em_up_attack_active = true;
     beat_em_up_attack_timer = beat_heavy_active_duration;
     beat_em_up_cooldown_timer = beat_heavy_cooldown;
+    beat_heavy_visual_timer = 24;
+    beat_heavy_restart = true;
+    beat_combo_index = -1;
+    beat_combo_timer = 0;
 
     // Limpiar enemigos golpeados en este ataque
     ds_list_clear(beat_em_up_enemies_hit);
@@ -1562,10 +1576,6 @@ function update_beat_em_up_hitbox(_damage, _reach, _height, _offset_y, _cooldown
     beat_em_up_hitbox_y2      = _hb_y2;
     beat_em_up_hitbox_visible = true;
 
-    // ── CARGA DE ENERGÍA: solo para golpes ligeros ──────────
-    // Es un golpe ligero si beat_em_up_attack_type == "punch"
-    var _is_light_punch = (beat_em_up_attack_type == "punch");
-
     // El parent cubre swordsman, archer, spider, golem y futuros enemigos.
     if (instance_exists(obj_enemy_parent)) {
         with (obj_enemy_parent) {
@@ -1582,17 +1592,6 @@ function update_beat_em_up_hitbox(_damage, _reach, _height, _offset_y, _cooldown
                     // Todo golpe de boxeo recupera maná una vez por enemigo.
                     player_add_mana(_player_id, MANA_GAIN_BOXING_HIT);
 
-                    // Cargar heavy solo si es golpe ligero.
-                    if (_is_light_punch) {
-                        _player_id.beat_heavy_charge += _player_id.beat_light_hit_charge_gain;
-                        _player_id.beat_heavy_charge = clamp(_player_id.beat_heavy_charge, 0, _player_id.beat_heavy_charge_max);
-                        if (_player_id.beat_heavy_charge >= _player_id.beat_heavy_charge_max) {
-                            _player_id.beat_heavy_unlocked = true;
-                            show_debug_message("[BEAT-CHARGE] HEAVY READY - charge = " + string(_player_id.beat_heavy_charge));
-                        } else {
-                            show_debug_message("[BEAT-CHARGE] +1 punch - charge = " + string(_player_id.beat_heavy_charge) + "/" + string(_player_id.beat_heavy_charge_max));
-                        }
-                    }
                 }
 
                 take_damage(_damage, _player_id);  // _player_id = source del daño

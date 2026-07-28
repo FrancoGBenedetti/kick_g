@@ -14,6 +14,9 @@ function scr_input_apply(_inp, _keyboard, _gamepad) {
     _inp.ranged_released = (_keyboard.ranged_released && !_gamepad.ranged_held)
                          || (_gamepad.ranged_released  && !_keyboard.ranged_held);
 
+    _inp.beat_em_up_pressed = _keyboard.beat_em_up_pressed || _gamepad.beat_em_up_pressed;
+    _inp.beat_heavy_pressed = _keyboard.beat_heavy_pressed || _gamepad.beat_heavy_pressed;
+
     _inp.aim_up_held     = _keyboard.aim_up_held     || _gamepad.aim_up_held;
     _inp.aim_down_held   = _keyboard.aim_down_held   || _gamepad.aim_down_held;
 

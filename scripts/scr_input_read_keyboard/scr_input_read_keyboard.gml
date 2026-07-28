@@ -14,6 +14,9 @@ function scr_input_read_keyboard(_kb) {
         ranged_held:     keyboard_check(_kb.kb_ranged),
         ranged_released: keyboard_check_released(_kb.kb_ranged),
 
+        beat_em_up_pressed: keyboard_check_pressed(_kb.kb_beat_em_up),
+        beat_heavy_pressed: keyboard_check_pressed(_kb.kb_beat_heavy),
+
         aim_up_held:     keyboard_check(_kb.kb_aim_up),
         aim_down_held:   keyboard_check(_kb.kb_aim_down),
 

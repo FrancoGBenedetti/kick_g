@@ -17,11 +17,20 @@ if (menu_mode == "stage") {
     _count = array_length(controller_actions);
 }
 
-if (menu_up_pressed()) {
+var _slot = global.keybinds.gp_slot;
+var _menu_raw = gamepad_is_connected(_slot)
+    ? gamepad_axis_value(_slot, gp_axislv)
+    : 0;
+var _menu_axis = abs(_menu_raw) > global.keybinds.gp_deadzone ? sign(_menu_raw) : 0;
+var _stick_up_pressed = _menu_axis < 0 && menu_prev_axis >= 0;
+var _stick_down_pressed = _menu_axis > 0 && menu_prev_axis <= 0;
+menu_prev_axis = _menu_axis;
+
+if (menu_up_pressed() || _stick_up_pressed) {
     menu_index = (menu_index + _count - 1) mod _count;
 }
 
-if (menu_down_pressed()) {
+if (menu_down_pressed() || _stick_down_pressed) {
     menu_index = (menu_index + 1) mod _count;
 }
 

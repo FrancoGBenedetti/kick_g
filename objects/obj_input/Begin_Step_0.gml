@@ -10,6 +10,7 @@ var _k_jump_p  = keyboard_check_pressed(_kb.kb_jump);
 var _k_jump_h  = keyboard_check(_kb.kb_jump);
 var _k_dash_p  = keyboard_check_pressed(_kb.kb_dash);
 var _k_attack  = keyboard_check_pressed(_kb.kb_attack);
+var _k_beat_em_up = keyboard_check_pressed(_kb.kb_beat_em_up);
 var _k_pause   = keyboard_check_pressed(_kb.kb_pause);
 
 // ── GAMEPAD ───────────────────────────────────────────────
@@ -20,6 +21,7 @@ var _gp_jump_p = false;
 var _gp_jump_h = false;
 var _gp_dash_p = false;
 var _gp_attack = false;
+var _gp_beat_em_up = false;
 var _gp_pause  = false;
 
 if (gamepad_is_connected(_kb.gp_slot)) {
@@ -29,6 +31,7 @@ if (gamepad_is_connected(_kb.gp_slot)) {
     _gp_jump_h = gamepad_button_check(_kb.gp_slot, _kb.gp_jump);
     _gp_dash_p = gamepad_button_check_pressed(_kb.gp_slot, _kb.gp_dash);
     _gp_attack = gamepad_button_check_pressed(_kb.gp_slot, _kb.gp_attack);
+    _gp_beat_em_up = gamepad_button_check_pressed(_kb.gp_slot, _kb.gp_beat_em_up);
     _gp_pause  = gamepad_button_check_pressed(_kb.gp_slot, _kb.gp_pause);
 }
 
@@ -39,4 +42,5 @@ _inp.jump_pressed   = _k_jump_p  || _gp_jump_p;
 _inp.jump_held      = _k_jump_h  || _gp_jump_h;
 _inp.dash_pressed   = _k_dash_p  || _gp_dash_p;
 _inp.attack_pressed = _k_attack  || _gp_attack;
+_inp.beat_em_up_pressed = _k_beat_em_up || _gp_beat_em_up;
 _inp.pause_pressed  = _k_pause   || _gp_pause;

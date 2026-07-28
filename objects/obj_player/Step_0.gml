@@ -38,6 +38,8 @@ if (input_only_lock) {
     global.inp.ranged_pressed = false;
     global.inp.ranged_held    = false;
     global.inp.ranged_released = false;
+    global.inp.beat_em_up_pressed = false;
+    global.inp.beat_heavy_pressed = false;
     global.inp.block_pressed  = false;
     global.inp.block_held     = false;
     global.inp.aim_up_held    = false;
@@ -229,8 +231,8 @@ if (bow_is_charging && global.inp.ranged_released) {
 }
 
 // ── BEAT 'EM UP MODE: activación ──────────────────────────
-// Activar con tecla B: dura 5 segundos, reemplaza espada/arco.
-if (keyboard_check_pressed(ord("B")) && !beat_em_up_active && ability_sword) {
+// Activar con flecha abajo / cruceta abajo: dura 5 segundos, reemplaza espada/arco.
+if (global.inp.beat_em_up_pressed && !beat_em_up_active && ability_sword) {
     start_beat_em_up_mode();
 }
 
@@ -364,11 +366,22 @@ if (beat_em_up_attack_active) {
     }
 }
 
-// Decrement combo window (si pasa el tiempo sin siguiente punch, reset combo)
-if (beat_em_up_active && beat_combo_index > 0) {
+if (beat_punch_visual_timer > 0) {
+    beat_punch_visual_timer--;
+}
+
+if (beat_heavy_visual_timer > 0) {
+    beat_heavy_visual_timer--;
+}
+
+// La ventana del combo comienza solo después de terminar la animación del golpe.
+var _beat_attack_in_progress = beat_em_up_attack_active
+                            || beat_punch_visual_timer > 0
+                            || beat_heavy_visual_timer > 0;
+if (beat_em_up_active && beat_combo_index >= 0 && !_beat_attack_in_progress) {
     beat_combo_timer++;
     if (beat_combo_timer >= beat_combo_window) {
-        beat_combo_index = 0;   // reset combo al siguiente punch
+        beat_combo_index = -1;  // el siguiente punch reinicia en jab
         beat_combo_timer = 0;
     }
 }
@@ -1623,6 +1636,24 @@ if (player_state == PSTATE.DASH
         break;
     }
 
+} else if (beat_em_up_active && beat_punch_visual_timer > 0) {
+    // Los dos primeros golpes usan jab; tercero y cuarto usan rect.
+    var _beat_punch_sprite = beat_combo_index < 2 ? jab : rect;
+    spr_set(_beat_punch_sprite);
+    if (beat_punch_restart) {
+        image_index = 0;
+        beat_punch_restart = false;
+    }
+    player_anim_state = "beat_punch";
+
+} else if (beat_em_up_active && beat_heavy_visual_timer > 0) {
+    spr_set(gancho);
+    if (beat_heavy_restart) {
+        image_index = 0;
+        beat_heavy_restart = false;
+    }
+    player_anim_state = "beat_heavy";
+
 } else if (bow_is_charging) {
     // ── Prioridad 4: arco cargando ────────────────────────
     // Placeholder — spr_player_bow pendiente.
@@ -1638,6 +1669,11 @@ if (player_state == PSTATE.DASH
     spr_set(spr_player_idle_master);
     player_anim_state = "idle";
     image_blend = is_parrying ? c_yellow : c_aqua;
+
+} else if (beat_em_up_active && isGrounded && _dir == 0) {
+    // Idle exclusivo de Beat 'em Up; los demás movimientos conservan sus sprites actuales.
+    spr_set(boxidle);
+    player_anim_state = "beat_idle";
 
 } else if (player_state == PSTATE.WALL) {
     // ── Prioridad 5: wall slide ───────────────────────────
@@ -1683,6 +1719,16 @@ if (player_state == PSTATE.DASH
 } else {
     // ── Prioridades 8 / 9: suelo, sin ataque ni dash ─────
     switch (player_anim_state) {
+
+        case "beat_idle":
+            spr_set(beat_em_up_active ? boxidle : spr_player_idle_master);
+            if (_dir != 0) {
+                spr_set(spr_player_run_start);
+                player_anim_state = "run_start";
+            } else if (!beat_em_up_active) {
+                player_anim_state = "idle";
+            }
+        break;
 
         case "idle":
             spr_set(spr_player_idle_master);
