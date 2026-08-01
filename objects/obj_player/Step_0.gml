@@ -72,7 +72,7 @@ var _sword_busy = (player_state == PSTATE.ATTACK_1
                 || player_state == PSTATE.DOWN_SLASH
                 || player_state == PSTATE.DASH_ATTACK
                 || player_state == PSTATE.COUNTER_ATTACK);
-var _bow_busy   = bow_is_charging;   // cubre carga + pending-release
+var _bow_busy   = bow_is_charging || bow_shooting;   // cubre carga + pending-release + anim de disparo
 var _block_busy = (player_state == PSTATE.BLOCK);
 
 var _dir       = global.inp.move_axis;
@@ -180,6 +180,9 @@ if (global.inp.attack_pressed && ability_sword && !_bow_busy && !_block_busy
 // Dash cancel → arco:
 //   Si el jugador está en PSTATE.DASH al presionar arco, el dash se cancela
 //   inmediatamente y el arco comienza. Funciona en suelo y en aire.
+if (global.inp.ranged_pressed) {
+    show_debug_message("[BOW DEBUG] X pressed/held");
+}
 if (global.inp.ranged_pressed && ability_bow && arrows >= ARROW_COST
     && !_bow_busy && bow_cooldown_timer <= 0
     && action_lock_timer <= 0 && !_block_busy && !beat_em_up_active
@@ -203,6 +206,9 @@ if (global.inp.ranged_pressed && ability_bow && arrows >= ARROW_COST
     bow_is_charging  = true;
     _bow_busy        = true;   // actualizar copia local — protege checks del resto del frame
     bow_charge_timer = 0;
+    bow_fully_charged      = false;
+    bow_charge_debug_frame = -1;
+    show_debug_message("[BOW DEBUG] enter charge");
     // Si se inicia en el aire, activar modo apuntado aéreo.
     // En suelo: el jugador apunta en su facing normal (sin aim mode).
     if (!isGrounded) {
@@ -228,6 +234,7 @@ if (global.inp.ranged_pressed && ability_bow && arrows >= ARROW_COST
 // ── ARCO: sticky release ──────────────────────────────────
 if (bow_is_charging && global.inp.ranged_released) {
     bow_release_pending = true;
+    show_debug_message("[BOW DEBUG] X released");
 }
 
 // ── BEAT 'EM UP MODE: activación ──────────────────────────
@@ -321,6 +328,8 @@ if (hitstun_timer > 0) {
     bow_release_pending = false;
     bow_is_charging     = false;
     bow_charge_timer    = 0;
+    bow_fully_charged   = false;
+    bow_shooting        = false;
     aim_angle           = 0;
     jumpBufferTimer     = 0;
 
@@ -357,6 +366,20 @@ if (beat_em_up_cooldown_timer > 0) {
     beat_em_up_cooldown_timer--;
 }
 
+// ── Combo del gancho: expira si no hay hits confirmados a tiempo ──
+// Se reinicia con cada player_register_beat_combo_hit(). Si se agota,
+// se pierde el combo entero (count → 0) y el gancho vuelve a bloquearse,
+// aunque ya hubiera llegado a 4.
+if (beat_heavy_combo_active) {
+    beat_heavy_combo_timer--;
+    if (beat_heavy_combo_timer <= 0) {
+        beat_heavy_combo_active = false;
+        beat_heavy_charge       = 0;
+        beat_heavy_unlocked     = false;
+        show_debug_message("[BEAT COMBO] combo expired");
+    }
+}
+
 // Decrement active attack timer (cuánto tiempo sigue activa la hitbox)
 if (beat_em_up_attack_active) {
     beat_em_up_attack_timer--;
@@ -367,7 +390,38 @@ if (beat_em_up_attack_active) {
 }
 
 if (beat_punch_visual_timer > 0) {
+    // _elapsed: frames de juego transcurridos desde que arrancó este golpe
+    // (jab o recto). Independiente del sprite/image_index — así el timing
+    // de hitbox/cancel no depende del orden de la sección de animación.
+    var _elapsed  = beat_attack_total_frames - beat_punch_visual_timer;
+    var _is_jab   = (beat_combo_index mod 2 == 0);
+    var _move_name = _is_jab ? "jab" : "right straight";
+
+    // ── Hitbox: dispara UNA sola vez al llegar al frame activo ────
+    if (!beat_attack_hit_triggered && _elapsed >= beat_attack_active_frame) {
+        beat_attack_hit_triggered = true;
+
+        ds_list_clear(beat_em_up_enemies_hit);
+        update_beat_em_up_hitbox(beat_punch_damage, beat_punch_reach, beat_punch_height,
+                                  beat_punch_offset_y, beat_punch_cooldown);
+
+        beat_em_up_attack_active = true;
+        beat_em_up_attack_timer  = beat_punch_active_duration;
+
+        show_debug_message("[BEAT COMBO] " + _move_name + " active frame");
+    }
+
+    // ── Cancel window: habilita el corte de recovery hacia el siguiente golpe ──
+    if (!beat_attack_can_cancel && _elapsed >= beat_attack_cancel_frame) {
+        beat_attack_can_cancel = true;
+        show_debug_message("[BEAT COMBO] " + _move_name + " cancel window");
+    }
+
     beat_punch_visual_timer--;
+    if (beat_punch_visual_timer <= 0) {
+        beat_attack_can_cancel = false;
+        show_debug_message("[BEAT COMBO] attack finished -> idle/fall");
+    }
 }
 
 if (beat_heavy_visual_timer > 0) {
@@ -459,8 +513,17 @@ if (bow_release_pending && !_in_attack) {
                 + "  vel_x=" + string(_arrow.vel_x)
                 + "  vel_y=" + string(_arrow.vel_y)
                 + "  facing=" + string(_fire_facing));
+            show_debug_message("[BOW DEBUG] arrow spawned");
 
             bow_cooldown_timer = bow_cooldown_frames;
+
+            // ── Animación de disparo: spr_player_bow_shoot ────
+            // Se reproduce una sola vez (ver sección ANIMACIÓN VISUAL).
+            // Al terminar, vuelve automáticamente a idle/run/jump/fall
+            // porque player_state nunca dejó de reflejar el movimiento real.
+            bow_shooting = true;
+            bow_shoot_debug_frame = -1;
+            show_debug_message("[BOW DEBUG] enter shoot");
         }
 
     }
@@ -477,6 +540,7 @@ if (bow_release_pending && !_in_attack) {
     bow_release_pending = false;
     bow_is_charging     = false;
     bow_charge_timer    = 0;
+    bow_fully_charged   = false;
     aim_angle           = 0;   // siempre resetear al terminar (disparo o cancelación)
 }
 
@@ -800,10 +864,10 @@ if (wallJumpLockTimer > 0) {
     // Aire: vel_x se conserva (incluye knockback), sin nuevo input.
     var _dir = 0;  // bloquear input
 
-} else if (bow_is_charging) {
+} else if (bow_is_charging || bow_shooting) {
 
     // ── ARCO: bloqueo de movimiento horizontal ─────────────
-    // El jugador se queda quieto apuntando.
+    // El jugador se queda quieto apuntando (o en el retroceso del disparo).
     // En suelo: desacelerar a 0 con ground_decel (rápido, ~2 frames).
     // En aire:  vel_x se conserva sin cambios — la inercia aérea
     //           sigue activa pero NO se acepta nuevo input direccional.
@@ -1482,9 +1546,14 @@ switch (player_state) {
 //
 // Prioridades (descendente):
 //   1. Daño / knockback   → hitstun-gate hace exit antes; sin código aquí
-//   2. Dash + cola visual → dash_start → dash_loop → dash_end
-//   3. Espada / ataque    → placeholder  (spr_player_attack_* pendientes)
-//   4. Arco / carga       → placeholder  (spr_player_bow pendiente)
+//   2a. Arco / disparo    → spr_player_bow_shoot (once, 4 fr) — máxima prioridad,
+//                           interrumpe cualquier animación anterior (incluida
+//                           la cola de dash, que de otro modo persiste vía
+//                           player_anim_state == "dash_*" aunque player_state
+//                           ya no sea PSTATE.DASH).
+//   2b. Arco / carga      → spr_player_bow_charge (5 fr, pegado en el último)
+//   3. Dash + cola visual → dash_start → dash_loop → dash_end
+//   4. Espada / ataque    → placeholder  (spr_player_attack_* pendientes)
 //   5. Wall slide         → spr_player_wallslide
 //   6. Salto   (vsp < 0)  → spr_player_jump  (congela último frame en apex)
 //   7. Caída   (vsp ≥ 0)  → spr_player_fall  (loop)
@@ -1493,6 +1562,9 @@ switch (player_state) {
 //
 // player_anim_state = "air" cubre wall, jump y fall como slot compartido:
 //   al aterrizar, "case air" del ground-switch transiciona a idle/run_loop.
+// player_anim_state = "bow_charge"/"bow_shoot" caen en el "default:" del
+//   ground-switch si terminan estando en el suelo (fallback a idle), o en
+//   la rama "!isGrounded" si terminan en el aire (fuerza "air" ahí mismo).
 // ══════════════════════════════════════════════════════════
 
 // ── AFTERIMAGE SPAWN ─────────────────────────────────────
@@ -1516,7 +1588,77 @@ if ((player_state == PSTATE.DASH || player_state == PSTATE.DASH_ATTACK || player
 draw_x_offset = 0;
 image_blend   = c_white;
 
-if (player_state == PSTATE.DASH
+if (bow_shooting) {
+    // ── Prioridad 1a: arco disparando ─────────────────────
+    // Máxima prioridad visual del arco: interrumpe CUALQUIER animación
+    // anterior (incluida la cola de dash — dash_start/loop/end — que de
+    // otro modo seguiría jugando por su cuenta ignorando el arco).
+    // spr_player_bow_shoot (4 frames) se reproduce una sola vez.
+    // spr_set() reinicia image_index a 0 solo la primera vez que
+    // entra a este branch (cambio de sprite); en los frames
+    // siguientes es no-op y la animación avanza sola.
+    var _entering_shoot = (sprite_index != spr_player_bow_shoot);
+    spr_set(spr_player_bow_shoot);
+    player_anim_state = "bow_shoot";
+    image_speed = bow_shoot_anim_speed * get_time_scale();
+    if (_entering_shoot) {
+        show_debug_message("[BOW DEBUG] shoot sprite set");
+    }
+
+    var _shoot_frame = floor(image_index);
+    if (_shoot_frame != bow_shoot_debug_frame) {
+        bow_shoot_debug_frame = _shoot_frame;
+        show_debug_message("[BOW DEBUG] shoot frame = " + string(_shoot_frame));
+    }
+
+    if (_shoot_frame >= image_number - 1) {
+        bow_shooting = false;
+        show_debug_message("[BOW DEBUG] shoot finished");
+        show_debug_message("[BOW DEBUG] return idle/fall");
+    }
+
+} else if (bow_is_charging) {
+    // ── Prioridad 1b: arco cargando ───────────────────────
+    // Misma prioridad máxima que el disparo: interrumpe idle/run/jump/
+    // fall/dash-tail apenas bow_is_charging se activa (mismo frame en
+    // que se presiona X, ver sección ALWAYS más arriba).
+    // spr_player_bow_charge (5 frames) NO hace loop: el frame se
+    // calcula manualmente según el progreso de bow_charge_timer /
+    // bow_charge_time_required (velocidad VISUAL, independiente del
+    // límite de acumulación bow_max_charge_frames que sigue rigiendo
+    // el daño de la flecha). Queda pegado en el último frame apenas
+    // se alcanza ese progreso, aunque el jugador siga manteniendo X.
+    var _entering_charge = (sprite_index != spr_player_bow_charge);
+    spr_set(spr_player_bow_charge);
+    player_anim_state = "bow_charge";
+    image_speed = 0;   // el progreso se controla a mano, sin avance automático
+    if (_entering_charge) {
+        show_debug_message("[BOW DEBUG] charge sprite set");
+        show_debug_message("[BOW DEBUG] charge required = " + string(bow_charge_time_required));
+    }
+
+    var _bow_progress = clamp(bow_charge_timer / bow_charge_time_required, 0, 1);
+    var _bow_frame     = floor(_bow_progress * (image_number - 1));
+    image_index = _bow_frame;
+
+    if (_bow_frame != bow_charge_debug_frame) {
+        bow_charge_debug_frame = _bow_frame;
+        show_debug_message("[BOW DEBUG] charge timer = " + string(bow_charge_timer));
+        show_debug_message("[BOW DEBUG] charge progress = " + string(round(_bow_progress * 100)) + "%");
+        show_debug_message("[BOW DEBUG] charge frame = " + string(_bow_frame));
+    }
+
+    if (_bow_progress >= 1) {
+        if (!bow_fully_charged) {
+            bow_fully_charged = true;
+            show_debug_message("[BOW DEBUG] fully charged");
+        }
+        image_index = image_number - 1;   // pegado en el último frame
+    } else {
+        bow_fully_charged = false;
+    }
+
+} else if (player_state == PSTATE.DASH
 ||  player_anim_state == "dash_start"
 ||  player_anim_state == "dash_loop"
 ||  player_anim_state == "dash_end") {
@@ -1637,12 +1779,22 @@ if (player_state == PSTATE.DASH
     }
 
 } else if (beat_em_up_active && beat_punch_visual_timer > 0) {
-    // Los dos primeros golpes usan jab; tercero y cuarto usan rect.
-    var _beat_punch_sprite = beat_combo_index < 2 ? jab : rect;
+    // jab (par) / recto (impar), alternado — ver player_start_beat_punch().
+    var _beat_is_jab     = (beat_combo_index mod 2 == 0);
+    var _beat_punch_sprite = _beat_is_jab ? jab : rect;
+    var _beat_anim_speed   = _beat_is_jab ? beat_jab_anim_speed : beat_right_straight_anim_speed;
     spr_set(_beat_punch_sprite);
     if (beat_punch_restart) {
         image_index = 0;
         beat_punch_restart = false;
+    }
+    image_speed = _beat_anim_speed * get_time_scale();
+    // Congelar en el último frame si el timing de combate (beat_punch_visual_timer,
+    // ver Step_0 arriba) todavía no terminó pero el sprite ya completó su ciclo
+    // — evita que loopee de vuelta al frame 0 antes de que el golpe "termine".
+    if (floor(image_index) >= image_number - 1) {
+        image_index = image_number - 1;
+        image_speed = 0;
     }
     player_anim_state = "beat_punch";
 
@@ -1653,12 +1805,6 @@ if (player_state == PSTATE.DASH
         beat_heavy_restart = false;
     }
     player_anim_state = "beat_heavy";
-
-} else if (bow_is_charging) {
-    // ── Prioridad 4: arco cargando ────────────────────────
-    // Placeholder — spr_player_bow pendiente.
-    // Previene que jump/fall/wallslide sobreescriban el sprite
-    // mientras el jugador apunta (relevante cuando esté en el aire).
 
 } else if (_block_busy) {
     // ── Prioridad 4.5: block / parry ──────────────────────
@@ -1791,6 +1937,18 @@ if (player_state == PSTATE.DASH
             player_anim_state = "idle";
         break;
     }
+}
+
+// ── ARCO: guardia de integridad del sprite ────────────────
+// Defensa contra regresiones futuras: si bow_shooting/bow_is_charging
+// siguen activos pero sprite_index no es el sprite de arco esperado,
+// algo después de este bloque lo está pisando. No debería pasar nunca
+// con la prioridad actual (arco es la rama 1a/1b, la más alta) — este
+// log es solo para detectar el problema si vuelve a aparecer.
+if (bow_shooting && sprite_index != spr_player_bow_shoot) {
+    show_debug_message("[BOW DEBUG] sprite overwritten by = " + string(sprite_index));
+} else if (bow_is_charging && sprite_index != spr_player_bow_charge) {
+    show_debug_message("[BOW DEBUG] sprite overwritten by = " + string(sprite_index));
 }
 
 // ── JUMP BACK: Desactivado — facing lock comentado ─────────

@@ -155,16 +155,60 @@ beat_em_up_active         = false;           // true mientras está el modo acti
 beat_em_up_duration       = 300;             // 5 segundos a 60 FPS
 beat_em_up_timer          = 0;               // cuenta regresiva
 
-// ── Combo de punches normal (3 golpes rápidos) ────────────
+// ── Combo de punches normal (jab / recto, alternado) ──────
 beat_punch_damage         = 1;               // daño por punch
 beat_punch_reach          = 90;              // alcance horizontal
 beat_punch_height         = 75;              // altura del hitbox
 beat_punch_offset_y       = -80;             // altura relativa al player
-beat_punch_active_duration = 5;              // frames que la hitbox está activa
+beat_punch_active_duration = 5;              // frames que la hitbox (debug visual) está activa
 beat_punch_cooldown       = 8;               // frames de espera entre punches
-beat_combo_index          = -1;              // -1 = sin combo; 0-3 = jab, jab, rect, rect
-beat_combo_timer          = 0;               // timer para siguiente punch
-beat_combo_window         = 20;              // frames para siguiente punch en combo
+beat_combo_index          = -1;              // -1 = sin combo; par = jab, impar = recto (alternado)
+beat_combo_timer          = 0;               // timer para siguiente punch (grace period post-recovery)
+beat_combo_window         = 20;              // frames para siguiente punch en combo, luego de terminar el golpe
+
+// ── Timing por golpe: jab / recto ─────────────────────────
+// Cada golpe se reproduce a 15 FPS "lógicos" (image_speed 0.25 a 60 FPS
+// de juego → 1 frame de sprite cada 4 frames de juego). Los frames de
+// "activo" y "cancel window" están en FRAMES DE JUEGO (no de sprite),
+// medidos desde que arranca el golpe (ver beat_attack_* más abajo).
+//
+// jab (spr "jab", 4 frames):
+//   frame sprite 0 (juego 0-3):  startup   — no cancela
+//   frame sprite 1 (juego 4-7):  activo    — hitbox se dispara acá
+//   frame sprite 2 (juego 8-11): cancel window — buffer → recto
+//   frame sprite 3 (juego 12-15): recovery
+beat_jab_anim_speed  = 0.25;   // 15 FPS visual (4 frames de juego por frame de sprite)
+beat_jab_total_frames = 16;    // 4 sprites x 4 frames de juego = 0.266s a 60fps
+beat_jab_active_frame = 4;     // frame de juego en que se activa el golpe
+beat_jab_cancel_frame = 8;     // frame de juego en que se habilita cancel → recto
+//
+// recto (spr "rect", 5 frames):
+//   frame sprite 0 (juego 0-3):   startup
+//   frame sprite 1 (juego 4-7):   extensión
+//   frame sprite 2 (juego 8-11):  activo — hitbox se dispara acá
+//   frame sprite 3 (juego 12-15): cancel window (preparado para un 3er golpe futuro)
+//   frame sprite 4 (juego 16-19): recovery
+beat_right_straight_anim_speed  = 0.25;   // 15 FPS visual
+beat_right_straight_total_frames = 20;    // 5 sprites x 4 frames de juego = 0.333s a 60fps
+beat_right_straight_active_frame = 8;     // frame de juego en que se activa el golpe
+beat_right_straight_cancel_frame = 12;    // frame de juego en que se habilita cancel (preparado, sin forzar 3er golpe)
+
+// ── Estado del golpe actual (jab o recto) ─────────────────
+// Se recalculan en player_start_beat_punch() según beat_combo_index.
+beat_attack_total_frames  = 0;      // duración total del golpe en curso (frames de juego)
+beat_attack_active_frame  = 0;      // frame de juego en que se dispara la hitbox
+beat_attack_cancel_frame  = 0;      // frame de juego en que se habilita el cancel
+beat_attack_hit_triggered = false;  // asegura un solo trigger de hitbox por golpe
+beat_attack_can_cancel    = false;  // true durante la cancel window del golpe actual
+
+// ── Input buffer para cancelar jab → recto ────────────────
+// Si el jugador presiona ataque ANTES de la cancel window, el input
+// queda guardado; al llegar a la cancel window, si el buffer sigue
+// vivo, se corta el recovery restante y arranca el siguiente golpe.
+// Si el buffer expira antes de la cancel window, el golpe actual
+// termina normal (recovery completo) y vuelve a idle/guardia.
+beat_combo_input_buffer_timer = 0;    // cuenta regresiva del input guardado
+beat_combo_input_buffer_max   = 12;   // ventana de buffer (frames de juego)
 
 // ── Golpe fuerte (Heavy) ──────────────────────────────────
 beat_heavy_damage         = 3;               // daño fuerte
@@ -196,11 +240,25 @@ beat_punch_restart        = false;
 beat_heavy_visual_timer   = 0;
 beat_heavy_restart        = false;
 
-// ── Carga de energía para golpe fuerte ────────────────────
-// Sistema de carga: 4 golpes ligeros o parries desbloquean el gancho fuerte.
-beat_heavy_charge         = 0;               // carga actual (0 a 4)
-beat_heavy_charge_max     = 4;               // carga necesaria
-beat_heavy_unlocked       = false;           // true cuando carga es máxima
+// ── Combo del gancho (jab/recto CONECTADOS desbloquean el gancho) ──
+// beat_heavy_charge reutiliza el contador ya existente (0 a 4) — el
+// pedido de esta sesión pide nombres "beat_combo_count/beat_combo_timer",
+// pero beat_combo_timer YA EXISTE con otro propósito (ventana de gracia
+// post-recovery para encadenar jab→recto, ver player_start_beat_punch()
+// y update_beat_em_up_mode()). Para no pisarlo, el timer de expiración
+// de ESTE combo usa el prefijo beat_heavy_combo_* en su lugar.
+//
+// Antes: beat_heavy_charge subía con CADA golpe lanzado (conecte o no).
+// Ahora: solo sube con golpes de jab/recto que CONECTAN de verdad
+// (ver player_register_beat_combo_hit(), llamado desde
+// update_beat_em_up_hitbox() solo cuando el tipo de ataque es "punch"
+// y al menos un enemigo fue golpeado).
+beat_heavy_charge         = 0;               // combo_count actual (0 a 4) — solo sube con hit confirmado
+beat_heavy_charge_max     = 4;               // combo_count_max — al llegar acá, unlocked = true
+beat_heavy_unlocked       = false;           // true cuando el combo llegó a 4 (gancho disponible)
+beat_heavy_combo_active   = false;           // true mientras el combo sigue "vivo" (no expiró)
+beat_heavy_combo_timer    = 0;               // cuenta regresiva; si llega a 0 → combo perdido
+beat_heavy_combo_timeout  = 90;              // ~1.5s a 60fps — se resetea con cada hit confirmado
 beat_uppercut_enabled     = false;           // TEMP: desactivar uppercut por ahora
 
 // ── Debug visual: hitbox del ataque Beat 'em Up ───────────
@@ -590,6 +648,29 @@ bow_max_charge_frames = 90;  // techo de acumulación — más allá no cambia n
 // ─ Cooldown entre disparos:
 bow_cooldown_frames = 18;    // frames de espera tras disparar (~0.3s)
 bow_cooldown_timer  = 0;     // cuenta regresiva activa; 0 = listo para cargar
+
+// ── Animación de arco: carga y disparo ────────────────────
+// spr_player_bow_charge (5 frames): progresa según bow_charge_timer /
+// bow_charge_time_required — NO hace loop, el último frame queda pegado
+// mientras bow_is_charging siga activo (arco visualmente cargado al máximo).
+// IMPORTANTE: bow_charge_time_required es INDEPENDIENTE de bow_max_charge_frames.
+//   • bow_charge_time_required → solo controla la VELOCIDAD VISUAL de
+//     spr_player_bow_charge (ajustar este valor para cambiar qué tan rápido
+//     se ve la carga, sin tocar el balance de daño del arco).
+//   • bow_max_charge_frames / bow_charge_lvl1 / bow_charge_lvl2 → siguen
+//     controlando el daño de la flecha al soltar (sin cambios). El jugador
+//     puede seguir manteniendo X después de que el sprite ya se ve
+//     "cargado al máximo" para alcanzar el nivel de daño más alto.
+// spr_player_bow_shoot (4 frames): se reproduce una sola vez al soltar
+// el botón y disparar; al terminar, la animación vuelve a idle/fall
+// automáticamente (el player_state de movimiento nunca deja de
+// actualizarse durante el arco — ver switch de transición en Step_0).
+bow_charge_time_required = 40;   // frames para que el SPRITE llegue al último frame (~0.66s a 60fps) — ajustar acá para más rápido/lento
+bow_fully_charged      = false;  // true cuando bow_charge_timer llega a bow_charge_time_required (carga visual completa)
+bow_shooting           = false;  // true mientras se reproduce spr_player_bow_shoot
+bow_shoot_anim_speed   = 0.25;   // image_speed de spr_player_bow_shoot (4 fr ≈ 12 fr de juego)
+bow_charge_debug_frame = -1;     // último frame de carga logueado (evita spam en el debug)
+bow_shoot_debug_frame  = -1;     // último frame de disparo logueado (evita spam en el debug)
 
 // ── Ángulo de apuntado vertical ──────────────────────────
 // Permite inclinar el disparo hacia arriba o hacia abajo
@@ -1043,6 +1124,7 @@ on_damage = function(_amount, _source) {
         bow_is_charging     = false;
         bow_charge_timer    = 0;
         bow_release_pending = false;
+        bow_fully_charged   = false;
         aim_angle           = 0;
         if (is_aiming) {
             facing     = saved_facing;
@@ -1052,6 +1134,9 @@ on_damage = function(_amount, _source) {
         // La slow motion se desactivará en la próxima pasada de la sección always
         // cuando bow_is_charging ya sea false.
     }
+
+    // ── Cancelar animación de disparo si estaba en curso ───
+    bow_shooting = false;
 
     // DEBUG — confirma quién daña al player y cuánta vida queda
     var _src_name = "unknown";
@@ -1364,6 +1449,7 @@ function start_roll() {
     attack_buffer = false;
     bow_release_pending = false;
     bow_is_charging = false;
+    bow_shooting = false;
 
     show_debug_message("[ROLL] Iniciado - duración: " + string(roll_duration) + "f");
     return true;
@@ -1435,12 +1521,44 @@ function end_beat_em_up_mode() {
 ///   1. Dash presionado → cancela Beat 'em Up (manejado en Step_0)
 ///   2. Arriba + X → Uppercut
 ///   3. X solo → Heavy Punch
-///   4. Z → Punch Combo
+///   4. Z → Punch Combo (jab / recto, con buffer + cancel a mitad de golpe)
 function update_beat_em_up_mode() {
+    if (!beat_em_up_active) return;
+
     var _attack_in_progress = beat_em_up_attack_active
                            || beat_punch_visual_timer > 0
                            || beat_heavy_visual_timer > 0;
-    if (!beat_em_up_active || beat_em_up_cooldown_timer > 0 || _attack_in_progress) return;
+
+    // ── Input buffer: capturar el press aunque el golpe siga activo ──
+    // Se guarda el input apenas se presiona ataque durante un jab/recto
+    // en curso, sin importar en qué frame esté todavía (rule 6: la
+    // cancelación en sí NO ocurre acá, solo se guarda la intención).
+    if (_attack_in_progress && beat_em_up_attack_type == "punch" && global.inp.attack_pressed) {
+        if (beat_combo_input_buffer_timer <= 0) {
+            show_debug_message("[BEAT COMBO] input buffered");
+        }
+        beat_combo_input_buffer_timer = beat_combo_input_buffer_max;
+    }
+    if (beat_combo_input_buffer_timer > 0) {
+        beat_combo_input_buffer_timer--;
+    }
+
+    // ── Cancel: jab/recto → siguiente golpe, solo desde la cancel window ──
+    // beat_attack_can_cancel lo activa Step_0 al llegar a beat_attack_cancel_frame.
+    // Si el buffer ya expiró para cuando se llega a la cancel window, el golpe
+    // actual sigue su curso normal (recovery completo → idle/guardia).
+    if (_attack_in_progress && beat_em_up_attack_type == "punch"
+    &&  beat_attack_can_cancel && beat_combo_input_buffer_timer > 0) {
+        var _from_jab = (beat_combo_index mod 2 == 0);
+        show_debug_message("[BEAT COMBO] cancel " + (_from_jab ? "jab -> right straight" : "right straight -> jab"));
+        beat_combo_input_buffer_timer = 0;
+        beat_combo_index = (beat_combo_index + 1) mod 2;   // alterna jab <-> recto
+        beat_combo_timer = 0;
+        player_start_beat_punch();
+        return;
+    }
+
+    if (beat_em_up_cooldown_timer > 0 || _attack_in_progress) return;
 
     var _up = global.inp.move_axis < 0;   // arriba detectado
     var _heavy_pressed = global.inp.beat_heavy_pressed;
@@ -1460,10 +1578,14 @@ function update_beat_em_up_mode() {
         return;
     }
 
-    // ── Punch Combo: jab, jab, rect, rect ─────────────────────
+    // ── Punch Combo: jab, recto, jab, recto... (post-recovery) ────────
+    // Este es el camino "lento": el golpe anterior ya terminó su recovery
+    // completo y el jugador presiona dentro de beat_combo_window. El camino
+    // "rápido" (cancelar durante el golpe) se resuelve arriba, antes del
+    // guard de _attack_in_progress.
     if (global.inp.attack_pressed) {
         if (beat_combo_index >= 0 && beat_combo_timer < beat_combo_window) {
-            beat_combo_index = (beat_combo_index + 1) mod 4;
+            beat_combo_index = (beat_combo_index + 1) mod 2;
         } else {
             beat_combo_index = 0;
         }
@@ -1474,40 +1596,59 @@ function update_beat_em_up_mode() {
 }
 
 /// @function player_start_beat_punch()
-/// @description Inicia un punch (combo: jab, jab, rect, rect)
+/// @description Inicia un punch — jab si beat_combo_index es par, recto si es impar.
+/// @details No dispara la hitbox acá — eso ocurre al llegar a beat_attack_active_frame
+/// (ver decremento de beat_punch_visual_timer en Step_0), para que el daño esté
+/// sincronizado con el frame de golpe activo real, no con el inicio de la animación.
 function player_start_beat_punch() {
-    beat_em_up_attack_type = "punch";
-    beat_em_up_attack_active = true;
-    beat_em_up_attack_timer = beat_punch_active_duration;
+    var _is_jab = (beat_combo_index mod 2 == 0);
+
+    beat_em_up_attack_type    = "punch";
+    beat_em_up_attack_active  = false;  // limpiar rectángulo de debug del golpe anterior;
+                                         // el nuevo trigger lo reactiva en su propio active_frame
     beat_em_up_cooldown_timer = beat_punch_cooldown;
-    beat_punch_visual_timer = 24;  // 6 frames a image_speed 0.25
-    beat_punch_restart = true;
+    beat_attack_total_frames  = _is_jab ? beat_jab_total_frames  : beat_right_straight_total_frames;
+    beat_attack_active_frame  = _is_jab ? beat_jab_active_frame  : beat_right_straight_active_frame;
+    beat_attack_cancel_frame  = _is_jab ? beat_jab_cancel_frame  : beat_right_straight_cancel_frame;
+    beat_attack_hit_triggered = false;
+    beat_attack_can_cancel    = false;
+    beat_punch_visual_timer   = beat_attack_total_frames;
+    beat_punch_restart        = true;
 
-    // Cada golpe ejecutado carga el gancho, incluso si no impacta a un enemigo.
-    beat_heavy_charge = clamp(beat_heavy_charge + 1, 0, beat_heavy_charge_max);
-    if (beat_heavy_charge >= beat_heavy_charge_max) {
-        beat_heavy_unlocked = true;
-        show_debug_message("[BEAT-CHARGE] HEAVY READY - charge = " + string(beat_heavy_charge));
-    } else {
-        show_debug_message("[BEAT-CHARGE] +1 punch - charge = "
-            + string(beat_heavy_charge) + "/" + string(beat_heavy_charge_max));
-    }
+    // El combo del gancho YA NO sube acá — solo sube si el golpe conecta
+    // de verdad (ver player_register_beat_combo_hit(), llamado desde
+    // update_beat_em_up_hitbox() en el frame activo del golpe).
 
-    // Limpiar enemigos golpeados en este ataque
-    ds_list_clear(beat_em_up_enemies_hit);
-
-    // Aplicar damage a enemigos cercanos
-    update_beat_em_up_hitbox(beat_punch_damage, beat_punch_reach, beat_punch_height,
-                              beat_punch_offset_y, beat_punch_cooldown);
+    show_debug_message("[BEAT COMBO] " + (_is_jab ? "jab start" : "right straight start"));
     show_debug_message("[BEAT-PUNCH] Combo #" + string(beat_combo_index + 1));
+}
+
+/// @function player_register_beat_combo_hit()
+/// @description Registra un golpe de jab/recto que CONECTÓ contra al menos
+/// un enemigo — alimenta el combo que desbloquea el gancho. Llamado una
+/// sola vez por golpe (no por enemigo) desde update_beat_em_up_hitbox().
+function player_register_beat_combo_hit() {
+    beat_heavy_combo_active = true;
+    beat_heavy_combo_timer  = beat_heavy_combo_timeout;
+
+    beat_heavy_charge = clamp(beat_heavy_charge + 1, 0, beat_heavy_charge_max);
+
+    show_debug_message("[BEAT COMBO] hit confirmed");
+    show_debug_message("[BEAT COMBO] count = " + string(beat_heavy_charge) + "/" + string(beat_heavy_charge_max));
+
+    if (beat_heavy_charge >= beat_heavy_charge_max && !beat_heavy_unlocked) {
+        beat_heavy_unlocked = true;
+        show_debug_message("[BEAT COMBO] hook unlocked");
+    }
 }
 
 /// @function player_start_beat_heavy()
 /// @description Inicia un Heavy Punch — solo si está desbloqueado
 function player_start_beat_heavy() {
-    // Verificar si está desbloqueado
+    // Verificar si está desbloqueado (combo de jab/recto llegó a 4)
     if (!beat_heavy_unlocked) {
         show_debug_message("[BEAT-HEAVY] LOCKED - charge = " + string(beat_heavy_charge) + "/" + string(beat_heavy_charge_max));
+        show_debug_message("[BEAT COMBO] hook locked");
         return;
     }
 
@@ -1528,10 +1669,13 @@ function player_start_beat_heavy() {
                               beat_heavy_offset_y, beat_heavy_cooldown,
                               beat_heavy_knockback_hsp, beat_heavy_knockback_vsp);
 
-    // Consumir carga
-    beat_heavy_charge = 0;
-    beat_heavy_unlocked = false;
+    // Consumir el combo por completo — golpear con el gancho gasta el premio.
+    beat_heavy_charge       = 0;
+    beat_heavy_unlocked     = false;
+    beat_heavy_combo_active = false;
+    beat_heavy_combo_timer  = 0;
     show_debug_message("[BEAT-HEAVY] USED - charge reset");
+    show_debug_message("[BEAT COMBO] hook used");
 }
 
 /// @function player_start_beat_uppercut()
@@ -1568,6 +1712,7 @@ function update_beat_em_up_hitbox(_damage, _reach, _height, _offset_y, _cooldown
     var _hb_x2 = _hb_x + _reach / 2;
     var _hb_y2 = _hb_y + _height / 2;
     var _player_id = id;  // guardar referencia al player para usar en with statement
+    var _any_hit   = false;  // true si al menos un enemigo fue golpeado en este llamado
 
     // ── DEBUG: guardar hitbox para visualización ─────────────
     beat_em_up_hitbox_x1      = _hb_x1;
@@ -1595,6 +1740,7 @@ function update_beat_em_up_hitbox(_damage, _reach, _height, _offset_y, _cooldown
                 }
 
                 take_damage(_damage, _player_id);  // _player_id = source del daño
+                _any_hit = true;
                 if (_kb_hsp != 0 || _kb_vsp != 0) {
                     vel_x = _kb_hsp;
                     vel_y = _kb_vsp;
@@ -1603,6 +1749,14 @@ function update_beat_em_up_hitbox(_damage, _reach, _height, _offset_y, _cooldown
         }
     }
 
+    // ── Combo del gancho: solo jab/recto que CONECTAN suman ──────────
+    // Un solo registro por golpe, sin importar cuántos enemigos abarcó
+    // el hitbox (evita sumar de más si el swing pega a varios a la vez).
+    // Heavy/uppercut NO alimentan este combo (sería circular: usar el
+    // premio no debería re-cargar el propio premio).
+    if (_any_hit && beat_em_up_attack_type == "punch") {
+        player_register_beat_combo_hit();
+    }
 }
 ;
 
