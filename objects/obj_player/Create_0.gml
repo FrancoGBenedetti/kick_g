@@ -682,8 +682,8 @@ bow_shoot_debug_frame  = -1;     // último frame de disparo logueado (evita spa
 //   aim_angle > 0  → apunta hacia abajo
 //
 // Al disparar:
-//   vel_x = facing * arrow_speed * cos(degtorad(aim_angle))
-//   vel_y = arrow_speed * sin(degtorad(aim_angle))
+//   launch_speed escala continuamente con la carga (ver BOW_ARROW_* en scr_config).
+//   vel_x / vel_y se calculan desde el ángulo absoluto de lanzamiento.
 //
 // Ajustar aim_angle_min/max para cambiar el rango permitido.
 // Ajustar aim_angle_speed para cambiar la velocidad de giro.

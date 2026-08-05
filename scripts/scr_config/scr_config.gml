@@ -124,6 +124,13 @@ enum BattleRoomArenaBoundsMode {
 #macro PLAYER_SHOULDER_Y -136    // hombros   (~91 %)            — era -68
 #macro PLAYER_HEAD_TOP_Y -176    // cima de cabeza (referencia visual) — era -88
 
+// ── Flecha del jugador: trayectoria balística ────────────────
+// La carga conserva sus umbrales de daño en obj_player/Create_0.gml;
+// estos valores controlan únicamente velocidad y caída.
+#macro BOW_ARROW_MIN_SPEED      8
+#macro BOW_ARROW_MAX_SPEED     22
+#macro BOW_ARROW_GRAVITY     0.12
+
 // ── Tipos de ataque (damage sources) ─────────────────────────────
 //  Asignado en cada damage source para permitir reacciones específicas.
 //  ATTACK_TYPE_MELEE      → golpe cuerpo a cuerpo (activa parry stun en el atacante)

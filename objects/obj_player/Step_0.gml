@@ -496,12 +496,22 @@ if (bow_release_pending && !_in_attack) {
         if (instance_exists(_arrow)) {
             player_add_arrows(id, -ARROW_COST);
 
-            // ── Velocidad con ángulo ──────────────────────────
-            var _rad = degtorad(aim_angle);
-            _arrow.vel_x = _fire_facing * _arrow.arrow_speed * cos(_rad);
-            _arrow.vel_y = _arrow.arrow_speed * sin(_rad);
+            // ── Velocidad balística continua según carga ──────
+            var _charge_normalized = clamp(
+                (bow_charge_timer - bow_min_charge_frames)
+                / (bow_max_charge_frames - bow_min_charge_frames),
+                0, 1
+            );
+            var _charge_power = power(_charge_normalized, 0.75);
+            var _launch_speed = lerp(BOW_ARROW_MIN_SPEED, BOW_ARROW_MAX_SPEED, _charge_power);
+
+            // lengthdir_y usa Y invertida; aim_angle usa Y positiva hacia abajo.
+            var _launch_angle = (_fire_facing > 0) ? -aim_angle : 180 + aim_angle;
+            _arrow.vel_x = lengthdir_x(_launch_speed, _launch_angle);
+            _arrow.vel_y = lengthdir_y(_launch_speed, _launch_angle);
 
             _arrow.charge_level = _charge_level;
+            _arrow.charge_normalized = _charge_normalized;
             _arrow.is_aerial    = !isGrounded;
             _arrow.owner        = id;
             if      (_charge_level == 2) { _arrow.damage = 3; }
@@ -509,6 +519,7 @@ if (bow_release_pending && !_in_attack) {
             else                         { _arrow.damage = 1; }
 
             show_debug_message("[DBG-BOW] FIRED: charge=" + string(_charge_level)
+                + "  speed=" + string(_launch_speed)
                 + "  aim_angle=" + string(aim_angle)
                 + "  vel_x=" + string(_arrow.vel_x)
                 + "  vel_y=" + string(_arrow.vel_y)

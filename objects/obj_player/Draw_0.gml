@@ -7,7 +7,6 @@
 //   3. DEBUG: ataque/hitbox    → F7  global.debug_attack
 //   4. DEBUG: dash slide       → F5  global.debug_collision
 //   5. DEBUG: anclas físicas   → debug_draw_anchors
-//   6. Indicador de arco       (solo mientras arco activo)
 //
 // IMPORTANTE: todo el debug está ANTES del exit del arco.
 // El exit de la línea del arco era la causa de que todos los
@@ -779,45 +778,6 @@ if (variable_global_exists("debug_collision") && global.debug_collision) {
     draw_set_halign(fa_left);
     draw_set_valign(fa_top);
 }
-
-// ══════════════════════════════════════════════════════════
-// 6. INDICADOR DE ARCO
-// Solo visible mientras el arco está cargado y la tecla presionada.
-// El exit aquí es INTENCIONAL — solo detiene el indicador visual.
-// Todo el debug está arriba, por eso no lo afecta.
-// ══════════════════════════════════════════════════════════
-if (!bow_is_charging || !global.inp.ranged_held) exit;
-
-var _fire_facing = (is_aiming) ? aim_facing : facing;
-var _rad   = degtorad(aim_angle);
-var _dir_x = _fire_facing * cos(_rad);
-var _dir_y = sin(_rad);
-
-var _ox = x;
-var _oy = y + PLAYER_CHEST_Y;
-
-var _line_len = 80;
-var _tip_x    = _ox + _dir_x * _line_len;
-var _tip_y    = _oy + _dir_y * _line_len;
-
-var _prev_color = draw_get_color();
-var _prev_alpha = draw_get_alpha();
-
-draw_set_color(make_color_rgb(255, 180, 0));
-draw_set_alpha(0.75);
-draw_line(_ox, _oy, _tip_x, _tip_y);
-
-draw_set_alpha(1.0);
-var _d = 5;
-draw_triangle(
-    _tip_x,      _tip_y - _d,
-    _tip_x + _d, _tip_y,
-    _tip_x - _d, _tip_y,
-    false
-);
-
-draw_set_color(_prev_color);
-draw_set_alpha(_prev_alpha);
 
 // ══════════════════════════════════════════════════════════
 // BEAT 'EM UP MODE — Red tint + hitbox debug

@@ -13,7 +13,7 @@
 //
 // Variables asignadas por obj_player tras instance_create_layer():
 //   owner        → id del jugador (excluido del daño por can_hit_owner=false)
-//   vel_x, vel_y → velocidad calculada con aim_angle y arrow_speed
+//   vel_x, vel_y → velocidad balística calculada desde carga y aim_angle
 //   damage       → daño según carga (1/2/3)
 //   charge_level → nivel de carga
 //   is_aerial    → true si se disparó en el aire
@@ -34,18 +34,17 @@ team          = TEAM_PLAYER;        // arma del jugador
 can_be_parried = false;             // las flechas del jugador no se pueden parriar
 can_be_blocked = false;
 is_projectile  = true;
-gravity        = 0;                 // vuelo recto (sin arco parabólico)
+uses_ballistic_trajectory = true;   // activa gravedad y acumuladores del parent
+gravity        = BOW_ARROW_GRAVITY;
 lifetime_max   = 120;               // ~2 s a 60 fps
 lifetimeTimer  = lifetime_max;
 
 // ── Velocidad de flecha ───────────────────────────────────
-// El player calcula y asigna vel_x/vel_y tras el spawn usando arrow_speed.
-// vel_x = facing * arrow_speed * cos(aim_angle)
-// vel_y = arrow_speed * sin(aim_angle)
-arrow_speed = 14;   // px/frame — sobreescribir aquí para variantes rápidas/lentas
+// El player calcula vel_x/vel_y desde BOW_ARROW_MIN/MAX_SPEED tras el spawn.
 
 // ── Datos de carga ────────────────────────────────────────
 charge_level = 0;    // nivel de carga asignado por el player (0/1/2)
+charge_normalized = 0;
 is_aerial    = false; // true si se disparó en el aire (para mecánicas futuras)
 
 // ── Hook de impacto ───────────────────────────────────────

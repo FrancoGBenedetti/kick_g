@@ -5,7 +5,7 @@
 //
 // Flujo por frame:
 //   1. Gate time_scale
-//   2. Gravedad opcional (vel_y += gravity)
+//   2. Gravedad opcional de proyectiles balísticos (vel_y += gravity)
 //   3. Orientación visual (image_angle según trayectoria)
 //   4. Movimiento horizontal con pixel-stepping + colisión tile + hit objetivo
 //   5. Movimiento vertical  con pixel-stepping + colisión tile + hit objetivo
@@ -22,7 +22,8 @@ if (!global.do_step) exit;
 
 // ── Gravedad ──────────────────────────────────────────────
 // Añade arco parabólico natural. Máximo 20 px/frame (evita tunneling).
-if (gravity != 0) {
+// Los proyectiles sin flag mantienen su desplazamiento anterior.
+if (uses_ballistic_trajectory && gravity != 0) {
     vel_y = min(vel_y + gravity, 20);
 }
 
@@ -36,9 +37,15 @@ image_angle = point_direction(0, 0, vel_x, vel_y);
 // ── Movimiento horizontal + colisión ─────────────────────
 // Pixel-stepping: avanza 1 px por iteración. Garantiza que
 // ningún objeto fino es atravesado aunque la velocidad sea alta.
-if (vel_x != 0) {
+var _move_x = ceil(abs(vel_x));
+if (uses_ballistic_trajectory) {
+    move_remainder_x += vel_x;
+    _move_x = floor(abs(move_remainder_x));
+    if (_move_x > 0) move_remainder_x -= sign(move_remainder_x) * _move_x;
+}
+if (_move_x > 0) {
     var _hstep = sign(vel_x);
-    repeat (ceil(abs(vel_x))) {
+    repeat (_move_x) {
         x += _hstep;
 
         if (projectile_try_interactive_hit()) exit;
@@ -72,9 +79,15 @@ if (vel_x != 0) {
 }
 
 // ── Movimiento vertical + colisión ───────────────────────
-if (vel_y != 0) {
+var _move_y = ceil(abs(vel_y));
+if (uses_ballistic_trajectory) {
+    move_remainder_y += vel_y;
+    _move_y = floor(abs(move_remainder_y));
+    if (_move_y > 0) move_remainder_y -= sign(move_remainder_y) * _move_y;
+}
+if (_move_y > 0) {
     var _vstep = sign(vel_y);
-    repeat (ceil(abs(vel_y))) {
+    repeat (_move_y) {
         y += _vstep;
 
         if (projectile_try_interactive_hit()) exit;

@@ -30,6 +30,7 @@ team = TEAM_ENEMY;   // default del parent; explícito por claridad
 // Arco suave natural. Sobreescribir para flechas balísticas o mágicas.
 // La variable 'gravity' la procesa obj_projectile_parent/Step.
 gravity = 0.12;   // px/frame²
+uses_ballistic_trajectory = true; // conserva el arco previo con movimiento decimal
 
 // ── Lifetime ──────────────────────────────────────────────
 // Sobreescribe el default de 180f del parent.

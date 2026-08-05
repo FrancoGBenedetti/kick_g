@@ -22,7 +22,7 @@
 //   damage   → daño por impacto (o dejar el default del parent: 1)
 //
 // Variables opcionales a sobreescribir en subclases:
-//   gravity, lifetime_max, hit_radius, target_object, team, flags
+//   uses_ballistic_trajectory, gravity, lifetime_max, hit_radius, target_object, team, flags
 // ══════════════════════════════════════════════════════════
 event_inherited();   // owner, damage, can_hit_owner, hit_source,
                      // hit_list, on_hit, try_hit — de obj_damage_source_parent
@@ -35,7 +35,10 @@ collision_map = layer_tilemap_get_id(layer_get_id(COLLISION_LAYER));
 // ── Movimiento ────────────────────────────────────────────
 vel_x   = 0;   // px/frame — asignado por el spawner
 vel_y   = 0;   // px/frame — asignado por el spawner
-gravity = 0;   // px/frame² — 0 = recto; > 0 = arco parabólico
+gravity = 0;   // px/frame² — se aplica solo si uses_ballistic_trajectory
+uses_ballistic_trajectory = false; // false conserva el movimiento previo del proyectil
+move_remainder_x = 0;
+move_remainder_y = 0;
 
 // ── Detección de impacto ──────────────────────────────────
 // Radio del rectángulo de detección alrededor de (x, y).
