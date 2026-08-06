@@ -125,7 +125,7 @@ switch (estate) {
             var _spawn_x  = x + (_fire_facing > 0 ? col_right + projectile_spawn_offset_x : col_left - projectile_spawn_offset_x);
             var _spawn_y  = y + projectile_spawn_offset_y;
 
-            var _arrow = instance_create_layer(_spawn_x, _spawn_y, "Instances_2", obj_enemy_arrow);
+            var _arrow = instance_create_layer(_spawn_x, _spawn_y, (layer_get_id("Instances_2") != -1 ? "Instances_2" : layer_get_name(layer)), obj_enemy_arrow);
             with (_arrow) {
                 owner   = _enemy_id;
                 damage  = _enemy_id.enemy_damage;
