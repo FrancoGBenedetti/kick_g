@@ -55,10 +55,16 @@ enemy_damage  = EARCHER_DAMAGE;    //  1 de daño
 
 // ── Offset de spawn de proyectil ───────────────────────────
 // Posición relativa donde aparecen las flechas respecto al cuerpo.
-// offset_x: distancia horizontal desde col_right/col_left
-// offset_y: distancia vertical desde y (negativo = arriba en el sprite)
+// offset_x: distancia horizontal desde col_right/col_left (sin cambios).
+//
+// Y ya NO usa un offset fijo en píxeles (projectile_spawn_offset_y) — con
+// origin del sprite en los pies, un offset fijo hacía que la flecha saliera
+// demasiado abajo (se perdía contra el piso). Ahora se calcula como un
+// RATIO de la altura real de bbox_top/bbox_bottom, así se adapta solo si
+// cambia el sprite o su escala. 0 = bbox_top (cabeza), 1 = bbox_bottom
+// (pies); 0.45 cae aproximadamente en el pecho/torso.
 projectile_spawn_offset_x = 8;     // píxeles más allá de col_right/col_left
-projectile_spawn_offset_y = -24;   // altura de pecho aproximada
+arrow_spawn_y_ratio       = 0.45;  // 0=cabeza, 1=pies — 0.45 ≈ torso/pecho
 
 // ── FSM: estados del arquero ──────────────────────────────
 ESTATE_AIM      = 2;   // apuntando y cargando

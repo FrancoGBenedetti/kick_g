@@ -9,7 +9,7 @@ function scr_input_ensure_globals() {
             kb_dash:       vk_shift,
             kb_attack:     ord("Z"),
             kb_ranged:     ord("X"),
-            kb_beat_em_up: vk_down,
+            kb_beat_em_up: ord("B"),
             kb_beat_heavy: ord("X"),
             kb_aim_up:     vk_up,
             kb_aim_down:   vk_down,
@@ -73,7 +73,7 @@ function scr_input_ensure_globals() {
     // Compatibilidad con sesiones que ya tenían globales creados antes de
     // agregar la acción Beat 'em Up; no pisa remaps existentes.
     if (!variable_struct_exists(global.keybinds, "kb_beat_em_up")) {
-        global.keybinds.kb_beat_em_up = vk_down;
+        global.keybinds.kb_beat_em_up = ord("B");
     }
     if (!variable_struct_exists(global.keybinds, "gp_beat_em_up")) {
         global.keybinds.gp_beat_em_up = gp_padd;

@@ -123,7 +123,10 @@ switch (estate) {
             // Usar attack_facing para que la flecha salga en la dirección decidida
             var _fire_facing = attack_facing;
             var _spawn_x  = x + (_fire_facing > 0 ? col_right + projectile_spawn_offset_x : col_left - projectile_spawn_offset_x);
-            var _spawn_y  = y + projectile_spawn_offset_y;
+            // Altura real del sprite (bbox_top/bbox_bottom), no un offset fijo
+            // desde los pies — así la flecha sale del torso sin importar el
+            // tamaño/escala del sprite. Ver arrow_spawn_y_ratio en Create.
+            var _spawn_y  = bbox_top + (bbox_bottom - bbox_top) * arrow_spawn_y_ratio;
 
             var _arrow = instance_create_layer(_spawn_x, _spawn_y, (layer_get_id("Instances_2") != -1 ? "Instances_2" : layer_get_name(layer)), obj_enemy_arrow);
             with (_arrow) {
@@ -143,7 +146,9 @@ switch (estate) {
                     + "  angle=" + string(aim_angle)
                     + "  facing=" + string(facing)
                     + "  offset_x=" + string(projectile_spawn_offset_x)
-                    + "  offset_y=" + string(projectile_spawn_offset_y));
+                    + "  bbox_top=" + string(bbox_top)
+                    + "  bbox_bottom=" + string(bbox_bottom)
+                    + "  spawn_ratio=" + string(arrow_spawn_y_ratio));
             }
 
             show_debug_message("[DBG] ARCHER disparó: angle=" + string(aim_angle)

@@ -14,8 +14,10 @@ if (!_show_debug) exit;
 if (estate != ESTATE_AIM) exit;
 
 // ── Origen del disparo usando los offsets configurables ─────
+// Mismo cálculo que Step (bbox_top/bbox_bottom + arrow_spawn_y_ratio) —
+// si cambia uno, cambiar el otro.
 var _ox  = x + (facing > 0 ? col_right + projectile_spawn_offset_x : col_left - projectile_spawn_offset_x);
-var _oy  = y + projectile_spawn_offset_y;
+var _oy  = bbox_top + (bbox_bottom - bbox_top) * arrow_spawn_y_ratio;
 
 // ── Dirección de la flecha ─────────────────────────────────
 var _rad = degtorad(aim_angle);
@@ -28,6 +30,9 @@ draw_set_alpha(0.8);
 draw_set_color(c_yellow);
 draw_line_width(_ox, _oy, _ex, _ey, 3);
 draw_circle(_ox, _oy, 6, false);   // círculo del spawn
+
+draw_text(_ox + 10, _oy - 20, "ARCHER FIRE POINT");
+draw_text(_ox + 10, _oy - 8,  string(round(_ox)) + ", " + string(round(_oy)));
 
 // ── Punto de referencia del cuerpo (para comparar) ─────────
 draw_set_color(c_aqua);

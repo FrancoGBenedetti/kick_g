@@ -238,9 +238,18 @@ if (bow_is_charging && global.inp.ranged_released) {
 }
 
 // ── BEAT 'EM UP MODE: activación ──────────────────────────
-// Activar con flecha abajo / cruceta abajo: dura 5 segundos, reemplaza espada/arco.
+// Activar con B (teclado) / cruceta abajo (gamepad): dura 5 segundos,
+// reemplaza espada/arco. NO usa flecha abajo — esa tecla queda libre para
+// aim_down/pogo/downward slash (kb_aim_down, bind separado).
 if (global.inp.beat_em_up_pressed && !beat_em_up_active && ability_sword) {
+    var _bem_debug = variable_global_exists("debug_dev") && global.debug_dev;
+    if (_bem_debug) {
+        show_debug_message("[PLAYER] BattleMode input pressed: B");
+    }
     start_beat_em_up_mode();
+    if (_bem_debug) {
+        show_debug_message("[PLAYER] Beat'em Up Mode activated by B");
+    }
 }
 
 // ARCO: acumulación de carga (always — tiempo real) ─────
