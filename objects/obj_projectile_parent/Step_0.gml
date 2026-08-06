@@ -20,6 +20,10 @@
 // ══════════════════════════════════════════════════════════
 if (!global.do_step) exit;
 
+if (parry_ignore_player_timer > 0) {
+    parry_ignore_player_timer--;
+}
+
 // ── Gravedad ──────────────────────────────────────────────
 // Añade arco parabólico natural. Máximo 20 px/frame (evita tunneling).
 // Los proyectiles sin flag mantienen su desplazamiento anterior.
@@ -63,13 +67,10 @@ if (_move_x > 0) {
 
         // Colisión con objetivo
         // try_hit maneja: owner-exclusion, anti-multi-hit, take_damage + on_hit
-        var _found = collision_rectangle(
-            x - hit_radius, y - hit_radius,
-            x + hit_radius, y + hit_radius,
-            target_object, false, true
-        );
-        if (try_hit(_found)) {
-            if (destroys_on_hit) {
+        var _found = projectile_find_target();
+        var _hit_result = try_hit(_found);
+        if (_hit_result != HIT_RESULT_NONE) {
+            if (projectile_should_destroy_after_hit(_hit_result)) {
                 instance_destroy();
                 exit;
             }
@@ -102,13 +103,10 @@ if (_move_y > 0) {
             break;
         }
 
-        var _found = collision_rectangle(
-            x - hit_radius, y - hit_radius,
-            x + hit_radius, y + hit_radius,
-            target_object, false, true
-        );
-        if (try_hit(_found)) {
-            if (destroys_on_hit) {
+        var _found = projectile_find_target();
+        var _hit_result = try_hit(_found);
+        if (_hit_result != HIT_RESULT_NONE) {
+            if (projectile_should_destroy_after_hit(_hit_result)) {
                 instance_destroy();
                 exit;
             }

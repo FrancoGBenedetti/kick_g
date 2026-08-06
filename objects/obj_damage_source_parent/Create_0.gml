@@ -104,7 +104,8 @@ on_hit = function(_target) {
 };
 
 // ── try_hit(_target) — punto único de aplicación de daño ──
-// Retorna true si el daño fue aplicado; false si fue rechazado.
+// Retorna un HIT_RESULT_*. Los callers booleanos existentes siguen
+// funcionando porque HIT_RESULT_NONE es el único valor falso.
 //
 // Reglas de rechazo (en orden de coste computacional):
 //   1. target inválido (noone, ya destruido)
@@ -122,19 +123,19 @@ try_hit = function(_target) {
     // ── Regla 1: target debe existir ─────────────────────
     if (!instance_exists(_target)) {
         show_debug_message("[TRY-HIT] TARGET NO EXISTE: " + string(_target));
-        return false;
+        return HIT_RESULT_NONE;
     }
 
     // ── Regla 2: respetar can_hit_owner ──────────────────
     if (!can_hit_owner && _target == owner) {
         show_debug_message("[TRY-HIT] TARGET ES OWNER + can_hit_owner=false");
-        return false;
+        return HIT_RESULT_NONE;
     }
 
     // ── Regla 3: anti-multi-hit ───────────────────────────
     if (ds_list_find_index(hit_list, _target) != -1) {
         show_debug_message("[TRY-HIT] TARGET YA EN HIT_LIST");
-        return false;
+        return HIT_RESULT_NONE;
     }
     ds_list_add(hit_list, _target);
 
@@ -143,7 +144,13 @@ try_hit = function(_target) {
                ? hit_source
                : id;
     show_debug_message("[TRY-HIT] APLICANDO DAÑO: target=" + object_get_name(_target.object_index) + " damage=" + string(damage) + " source=" + string(_src));
-    _target.take_damage(damage, _src);
+    var _hit_result = _target.take_damage(damage, _src);
+
+    // Los actores existentes que no retornan un resultado conservan el
+    // comportamiento previo: un contacto válido cuenta como daño.
+    if (is_undefined(_hit_result)) {
+        _hit_result = HIT_RESULT_DAMAGE;
+    }
 
     // ── Hook de efectos ───────────────────────────────────
     // CONTRATO: on_hit recibe _target tal como fue golpeado.
@@ -153,7 +160,9 @@ try_hit = function(_target) {
     // instance_exists(_target) antes de leer cualquier propiedad.
     // El rebote del pogo NO necesita que _target exista — solo aplica
     // velocidad al owner, por lo que funciona correctamente en ambos casos.
-    on_hit(_target);
+    if (_hit_result == HIT_RESULT_DAMAGE) {
+        on_hit(_target);
+    }
 
-    return true;
+    return _hit_result;
 };

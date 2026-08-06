@@ -83,17 +83,12 @@ lifetimeTimer = lifetime_max;
 //   false → inmune a la espada (bola de fuego, magia, trampa, etc.)
 //
 // can_be_parried:
-//   true  → intención: el parry del jugador neutraliza este proyectil
-//   false → intención: el parry no tiene efecto
-//   NOTA V1: la distinción can_be_parried=false aún no está implementada
-//   en el override take_damage del jugador — todos los proyectiles son
-//   parriables si el jugador tiene parry activo. Implementar en V2:
-//     en player.take_damage: if (is_parrying && _source.can_be_parried) ...
+//   true  → el parry del jugador delega el resultado a on_parried()
+//   false → ignora el parry y sigue el flujo normal de daño/block.
 //
 // can_be_blocked:
-//   true  → intención: el block detiene el daño
-//   false → intención: proyectil "unblockable" que atraviesa el escudo
-//   NOTA V1: igual que can_be_parried — semántica pendiente de V2.
+//   true  → el block normal detiene el daño
+//   false → proyectil "unblockable" que atraviesa el escudo.
 //
 // reflect_on_parry:
 //   true  → al ser parriado, el proyectil invierte vel_x y cambia team
@@ -111,6 +106,94 @@ can_be_parried            = false;
 can_be_blocked            = false;
 reflect_on_parry          = false;
 is_unbreakable            = false;
+
+// ── Resultado de parry ───────────────────────────────────
+// reflect_on_parry queda como flag legado; parry_result es la única
+// autoridad para definir la reacción del proyectil.
+parry_result = PARRY_DESTROY;
+parry_reflect_min_speed = 8;
+parry_reflect_speed_multiplier = 1.25;
+parry_ignore_player_frames = 2;
+parry_ignore_player_timer = 0;
+parry_damage_multiplier = 1.5;
+parry_absorb_mana = 1;
+was_parried = false;
+
+// ── Hook dedicado de parry ───────────────────────────────
+// El jugador llama este método después de confirmar un parry frontal.
+// Retorna un HIT_RESULT_* para que el Step decida si destruye el objeto.
+on_parried = function(_player) {
+    switch (parry_result) {
+        case PARRY_REFLECT:
+            var _original_owner = owner;
+            var _speed = point_distance(0, 0, vel_x, vel_y);
+            _speed = max(_speed, parry_reflect_min_speed) * parry_reflect_speed_multiplier;
+
+            var _dir;
+            if (instance_exists(_original_owner)) {
+                _dir = point_direction(x, y, _original_owner.x, _original_owner.y);
+            } else {
+                _dir = point_direction(0, 0, -vel_x, -vel_y);
+                if (vel_x == 0 && vel_y == 0) _dir = (_player.facing == 1) ? 0 : 180;
+            }
+
+            vel_x = lengthdir_x(_speed, _dir);
+            vel_y = lengthdir_y(_speed, _dir);
+            team = TEAM_PLAYER;
+            owner = _player;
+            target_object = obj_enemy_parent;
+            can_hit_owner = false;
+            ds_list_clear(hit_list);
+
+            if (!was_parried) {
+                damage *= parry_damage_multiplier;
+                was_parried = true;
+            }
+
+            // Saca el proyectil de la caja del jugador antes del próximo Step.
+            x = _player.x + lengthdir_x(hit_radius + 4, _dir);
+            y = _player.y + lengthdir_y(hit_radius + 4, _dir);
+            parry_ignore_player_timer = parry_ignore_player_frames;
+            return HIT_RESULT_PARRIED_REFLECT;
+
+        case PARRY_ABSORB:
+            // El recurso siempre pasa por el helper del jugador; el feedback
+            // general de parry no entrega maná adicional a proyectiles.
+            _player.grant_parry_mana(parry_absorb_mana);
+            return HIT_RESULT_PARRIED_ABSORB;
+
+        case PARRY_DESTROY:
+        default:
+            return HIT_RESULT_PARRIED_DESTROY;
+    }
+};
+
+// Decide la destrucción sin colapsar reflect en un booleano genérico.
+projectile_should_destroy_after_hit = function(_hit_result) {
+    switch (_hit_result) {
+        case HIT_RESULT_PARRIED_DESTROY:
+        case HIT_RESULT_PARRIED_ABSORB:
+            return true;
+
+        case HIT_RESULT_DAMAGE:
+        case HIT_RESULT_BLOCKED:
+            return destroys_on_hit;
+    }
+
+    return false;
+};
+
+projectile_find_target = function() {
+    if (parry_ignore_player_timer > 0 && target_object == obj_player) {
+        return noone;
+    }
+
+    return collision_rectangle(
+        x - hit_radius, y - hit_radius,
+        x + hit_radius, y + hit_radius,
+        target_object, false, true
+    );
+};
 
 // ── Interactivos golpeados por proyectiles ────────────────
 // Corre durante el pixel-step, antes de la colisión con tiles.

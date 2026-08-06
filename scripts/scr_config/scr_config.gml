@@ -138,6 +138,22 @@ enum BattleRoomArenaBoundsMode {
 #macro ATTACK_TYPE_MELEE       0
 #macro ATTACK_TYPE_PROJECTILE  1
 
+// ── Resultados de impactos y parries de proyectiles ───────────────
+// try_hit() devuelve uno de estos valores. HIT_RESULT_NONE debe ser 0
+// para conservar los checks booleanos de hitboxes existentes.
+#macro HIT_RESULT_NONE              0
+#macro HIT_RESULT_DAMAGE            1
+#macro HIT_RESULT_BLOCKED           2
+#macro HIT_RESULT_PARRIED_DESTROY   3
+#macro HIT_RESULT_PARRIED_REFLECT   4
+#macro HIT_RESULT_PARRIED_ABSORB    5
+
+// Configurable por proyectil mediante parry_result.
+#macro PARRY_NONE     0
+#macro PARRY_DESTROY  1
+#macro PARRY_REFLECT  2
+#macro PARRY_ABSORB   3
+
 // ── Knockback del jugador al recibir daño ────────────────────────
 //  Aplicado cuando un enemigo golpea al jugador.
 //  PLAYER_KNOCKBACK_X  : px/frame de empuje horizontal (actor default: 5)

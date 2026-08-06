@@ -973,7 +973,7 @@ blink_interval = 4;
 damage_recovery_lock = false;
 damage_recovery_lock_timer = 0;
 var _cfg_recovery = variable_global_exists("current_config") ? global.current_config : {
-	damage_recovery_lock_duration: 90
+	damage_recovery_lock_duration: 60
 };
 damage_recovery_lock_duration = _cfg_recovery.damage_recovery_lock_duration;  // configurable por dificultad
 
@@ -1253,6 +1253,12 @@ parry_popup_timer_max = 28;   // frames reales — ajustar para más/menos durac
 // Llamar a base_take_damage(_amount, _source) delega al parent sin super().
 base_take_damage = take_damage;
 
+// Punto único de entrega de recurso para parries. Los proyectiles absorbidos
+// lo invocan desde on_parried(); el parry melee usa MANA_GAIN_PARRY abajo.
+grant_parry_mana = function(_amount) {
+    player_add_mana(id, _amount);
+};
+
 take_damage = function(_amount, _source) {
 
     // ── Dirección del ataque ──────────────────────────────
@@ -1265,11 +1271,19 @@ take_damage = function(_amount, _source) {
         _from_front = (sign(_source.x - x) == facing);
     }
 
+    // Fuentes antiguas sin flags se tratan como no bloqueables ni parriables.
+    var _can_be_parried = instance_exists(_source)
+        && variable_instance_exists(_source, "can_be_parried")
+        && _source.can_be_parried;
+    var _can_be_blocked = instance_exists(_source)
+        && variable_instance_exists(_source, "can_be_blocked")
+        && _source.can_be_blocked;
+
     // ── PARRY PERFECTO ────────────────────────────────────
     // Ventana activa + ataque frontal → parry success.
     // No aplica daño ni knockback al jugador. Activa slow-mo y
     // can_counterattack. Si el ataque era melee, aturde al atacante.
-    if (is_parrying && _from_front) {
+    if (is_parrying && _from_front && _can_be_parried) {
         show_debug_message("[DBG-BLOCK] PARRY PERFECTO — ataque bloqueado, can_counterattack activado");
 
         // ── Flags de parry ────────────────────────────────
@@ -1283,8 +1297,14 @@ take_damage = function(_amount, _source) {
         parry_active         = false;
         parry_cooldown_timer = PARRY_COOLDOWN_MAX;
 
-        // ── Maná por parry confirmado ─────────────────────
-        player_add_mana(id, MANA_GAIN_PARRY);
+        // ── Hook del proyectil / maná del parry ────────────
+        var _parry_result = HIT_RESULT_NONE;
+        if (instance_exists(_source)
+        &&  variable_instance_exists(_source, "on_parried")) {
+            _parry_result = _source.on_parried(id);
+        } else {
+            grant_parry_mana(MANA_GAIN_PARRY);
+        }
 
         // ── Ventana de contraataque ───────────────────────
         // Se abre internamente aunque ability_counterattack = false.
@@ -1391,16 +1411,18 @@ take_damage = function(_amount, _source) {
         damage_recovery_lock = false;
         damage_recovery_lock_timer = 0;
 
-        return;   // sin daño, sin knockback al jugador, sin hitstun
+        return (_parry_result == HIT_RESULT_NONE)
+            ? HIT_RESULT_BLOCKED
+            : _parry_result;
     }
 
     // ── BLOCK NORMAL ─────────────────────────────────────
     // Fuera de la ventana perfecta, con block activo + ataque frontal.
     // Primera versión: niega daño y knockback completamente.
     // Futuro: reducir a 1 de daño (block imperfecto) para distinguirlo del parry.
-    if (is_blocking && _from_front) {
+    if (is_blocking && _from_front && _can_be_blocked) {
         show_debug_message("[DBG-BLOCK] BLOCK NORMAL — daño negado, sin knockback");
-        return;   // sin daño
+        return HIT_RESULT_BLOCKED;
     }
 
     // ── DAÑO NORMAL ──────────────────────────────────────
@@ -1418,6 +1440,8 @@ take_damage = function(_amount, _source) {
         damage_recovery_lock_timer = min(invuln_timer, damage_recovery_lock_duration);
         show_debug_message("[PLAYER] Daño recibido: damage_recovery_lock activado por " + string(damage_recovery_lock_timer) + " frames (dificultad: " + get_difficulty_string() + ")");
     }
+
+    return HIT_RESULT_DAMAGE;
 };
 
 /// @function player_can_roll()

@@ -42,7 +42,7 @@ hit_radius = 8;
 can_be_destroyed_by_sword = true;    // la espada del jugador la destruye
 can_be_parried            = true;    // parry perfecto la neutraliza
 can_be_blocked            = true;    // block normal detiene el daño
-reflect_on_parry          = false;   // futuro: reflect_on_parry = true
+parry_result              = PARRY_ABSORB;
 destroys_on_hit           = true;    // se destruye al impactar
 destroy_on_tile_collision = true;    // se destruye al tocar tile sólido
 is_unbreakable            = false;

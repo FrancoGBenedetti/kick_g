@@ -41,7 +41,7 @@ lifetimeTimer = lifetime_max;
 can_be_destroyed_by_sword = true;    // la espada del jugador la destruye
 can_be_parried            = true;    // el parry la neutraliza
 can_be_blocked            = true;    // el block detiene el daño
-reflect_on_parry          = false;   // futuro: reflect_on_parry = true (flecha robada)
+parry_result              = PARRY_REFLECT;
 is_unbreakable            = false;
 
 // ── Hook de impacto ───────────────────────────────────────

@@ -35,7 +35,7 @@ function scr_difficulty_config() {
 		player_knockback_x:          24,    // empuje horizontal
 		player_knockback_y:          -8,    // empuje vertical
 		player_knockback_decay:      0.80,  // decay por frame
-		damage_recovery_lock_duration: 90,  // frames que el player está bloqueado tras daño
+		damage_recovery_lock_duration: 60,  // 1 s: frames que el player está bloqueado tras daño
 
 		// ─ ENEMY: Multiplicadores de timing ──────────────────────────
 		// Swordsman base: windup=30, cooldown=90
@@ -61,7 +61,7 @@ function scr_difficulty_config() {
 		player_knockback_x:          global.config.normal.player_knockback_x,
 		player_knockback_y:          global.config.normal.player_knockback_y,
 		player_knockback_decay:      global.config.normal.player_knockback_decay,
-		damage_recovery_lock_duration: ceil(global.config.normal.damage_recovery_lock_duration * 0.65), // 58
+		damage_recovery_lock_duration: ceil(global.config.normal.damage_recovery_lock_duration * 0.65), // 39
 
 		// ─ ENEMY: Enemigos más lentos ────────────────────────────────
 		enemy_attack_windup_multiplier:   1.35,   // 35% más tiempo en windup
