@@ -22,6 +22,11 @@ projectile_spawn_yoff = -70;
 projectile_target_yoff = -70;
 projectile_layer = "Instances";
 
+pre_shot_count_enabled = true;
+pre_shot_count_max = 3;
+pre_shot_count_yoff = -170;
+pre_shot_count_scale = 1.6;
+
 arrow_close_duration = 25;
 damage_duration = 15;
 death_duration = 15;
