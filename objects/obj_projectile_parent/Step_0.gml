@@ -54,8 +54,22 @@ if (_move_x > 0) {
 
         if (projectile_try_interactive_hit()) exit;
 
+        // Algunos proyectiles reflejados deben poder impactar a su emisor
+        // aunque éste esté pegado a una pared sólida.
+        if (target_before_tile_collision) {
+            var _h_pre_found = projectile_find_target();
+            var _h_pre_hit_result = try_hit(_h_pre_found);
+            if (_h_pre_hit_result != HIT_RESULT_NONE) {
+                if (projectile_should_destroy_after_hit(_h_pre_hit_result)) {
+                    instance_destroy();
+                    exit;
+                }
+                break;
+            }
+        }
+
         // Colisión con tile sólido
-        if (tile_solid_at(collision_map, x, y)) {
+        if (!ignore_tile_collision && tile_solid_at(collision_map, x, y)) {
             on_hit(noone);
             if (destroy_on_tile_collision) {
                 instance_destroy();
@@ -67,14 +81,16 @@ if (_move_x > 0) {
 
         // Colisión con objetivo
         // try_hit maneja: owner-exclusion, anti-multi-hit, take_damage + on_hit
-        var _found = projectile_find_target();
-        var _hit_result = try_hit(_found);
-        if (_hit_result != HIT_RESULT_NONE) {
-            if (projectile_should_destroy_after_hit(_hit_result)) {
-                instance_destroy();
-                exit;
+        if (!target_before_tile_collision) {
+            var _found = projectile_find_target();
+            var _hit_result = try_hit(_found);
+            if (_hit_result != HIT_RESULT_NONE) {
+                if (projectile_should_destroy_after_hit(_hit_result)) {
+                    instance_destroy();
+                    exit;
+                }
+                break;
             }
-            break;
         }
     }
 }
@@ -93,7 +109,19 @@ if (_move_y > 0) {
 
         if (projectile_try_interactive_hit()) exit;
 
-        if (tile_solid_at(collision_map, x, y)) {
+        if (target_before_tile_collision) {
+            var _v_pre_found = projectile_find_target();
+            var _v_pre_hit_result = try_hit(_v_pre_found);
+            if (_v_pre_hit_result != HIT_RESULT_NONE) {
+                if (projectile_should_destroy_after_hit(_v_pre_hit_result)) {
+                    instance_destroy();
+                    exit;
+                }
+                break;
+            }
+        }
+
+        if (!ignore_tile_collision && tile_solid_at(collision_map, x, y)) {
             on_hit(noone);
             if (destroy_on_tile_collision) {
                 instance_destroy();
@@ -103,14 +131,16 @@ if (_move_y > 0) {
             break;
         }
 
-        var _found = projectile_find_target();
-        var _hit_result = try_hit(_found);
-        if (_hit_result != HIT_RESULT_NONE) {
-            if (projectile_should_destroy_after_hit(_hit_result)) {
-                instance_destroy();
-                exit;
+        if (!target_before_tile_collision) {
+            var _found = projectile_find_target();
+            var _hit_result = try_hit(_found);
+            if (_hit_result != HIT_RESULT_NONE) {
+                if (projectile_should_destroy_after_hit(_hit_result)) {
+                    instance_destroy();
+                    exit;
+                }
+                break;
             }
-            break;
         }
     }
 }

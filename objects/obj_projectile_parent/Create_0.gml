@@ -63,6 +63,11 @@ attack_type = ATTACK_TYPE_PROJECTILE;
 // independientemente de target_object y can_hit_owner.
 team = TEAM_ENEMY;
 
+// Conserva quién lanzó el proyectil antes de que un parry cambie owner.
+// Los spawners asignan este dato junto con owner cuando necesitan validar
+// un retorno contra su emisor original.
+original_owner = noone;
+
 // ── Lifetime ──────────────────────────────────────────────
 // Sobreescribir en subclases si el proyectil necesita duración diferente.
 lifetime_max  = 180;   // ~3 s a 60 fps
@@ -101,6 +106,8 @@ lifetimeTimer = lifetime_max;
 //   false → comportamiento normal de todos los flags anteriores
 destroy_on_tile_collision = true;
 destroys_on_hit           = true;
+target_before_tile_collision = false;
+ignore_tile_collision = false;
 can_be_destroyed_by_sword = false;
 can_be_parried            = false;
 can_be_blocked            = false;
@@ -126,6 +133,7 @@ on_parried = function(_player) {
     switch (parry_result) {
         case PARRY_REFLECT:
             var _original_owner = owner;
+            if (!instance_exists(original_owner)) original_owner = _original_owner;
             var _speed = point_distance(0, 0, vel_x, vel_y);
             _speed = max(_speed, parry_reflect_min_speed) * parry_reflect_speed_multiplier;
 
