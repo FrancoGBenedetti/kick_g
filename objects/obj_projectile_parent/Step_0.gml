@@ -24,6 +24,24 @@ if (parry_ignore_player_timer > 0) {
     parry_ignore_player_timer--;
 }
 
+// Un proyectil reflejado persigue al emisor original hasta impactarlo.
+if (was_parried
+&& parry_result == PARRY_REFLECT
+&& instance_exists(original_owner)) {
+    var _return_speed = max(
+        point_distance(0, 0, vel_x, vel_y),
+        parry_reflect_min_speed * parry_reflect_speed_multiplier
+    );
+    var _return_target_y = original_owner.bbox_top
+        + (original_owner.bbox_bottom - original_owner.bbox_top) * 0.45;
+    if (variable_instance_exists(original_owner, "projectile_target_yoff")) {
+        _return_target_y = original_owner.y + original_owner.projectile_target_yoff;
+    }
+    var _return_direction = point_direction(x, y, original_owner.x, _return_target_y);
+    vel_x = lengthdir_x(_return_speed, _return_direction);
+    vel_y = lengthdir_y(_return_speed, _return_direction);
+}
+
 // ── Gravedad ──────────────────────────────────────────────
 // Añade arco parabólico natural. Máximo 20 px/frame (evita tunneling).
 // Los proyectiles sin flag mantienen su desplazamiento anterior.

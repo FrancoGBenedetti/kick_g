@@ -40,9 +40,9 @@ hit_radius = 8;
 
 // ── Flags de comportamiento ───────────────────────────────
 can_be_destroyed_by_sword = true;    // la espada del jugador la destruye
-can_be_parried            = true;    // parry perfecto la neutraliza
+can_be_parried            = true;    // parry perfecto la devuelve al emisor
 can_be_blocked            = true;    // block normal detiene el daño
-parry_result              = PARRY_ABSORB;
+parry_result              = PARRY_REFLECT;
 destroys_on_hit           = true;    // se destruye al impactar
 destroy_on_tile_collision = true;    // se destruye al tocar tile sólido
 is_unbreakable            = false;

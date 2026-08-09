@@ -124,6 +124,7 @@ parry_ignore_player_frames = 2;
 parry_ignore_player_timer = 0;
 parry_damage_multiplier = 1.5;
 parry_absorb_mana = 1;
+parry_reflect_kills_original_owner = true;
 was_parried = false;
 
 // ── Hook dedicado de parry ───────────────────────────────
@@ -139,7 +140,12 @@ on_parried = function(_player) {
 
             var _dir;
             if (instance_exists(_original_owner)) {
-                _dir = point_direction(x, y, _original_owner.x, _original_owner.y);
+                var _target_y = _original_owner.bbox_top
+                    + (_original_owner.bbox_bottom - _original_owner.bbox_top) * 0.45;
+                if (variable_instance_exists(_original_owner, "projectile_target_yoff")) {
+                    _target_y = _original_owner.y + _original_owner.projectile_target_yoff;
+                }
+                _dir = point_direction(x, y, _original_owner.x, _target_y);
             } else {
                 _dir = point_direction(0, 0, -vel_x, -vel_y);
                 if (vel_x == 0 && vel_y == 0) _dir = (_player.facing == 1) ? 0 : 180;
@@ -151,11 +157,25 @@ on_parried = function(_player) {
             owner = _player;
             target_object = obj_enemy_parent;
             can_hit_owner = false;
+            target_before_tile_collision = true;
+            ignore_tile_collision = true;
+            uses_ballistic_trajectory = false;
+            gravity = 0;
+            can_be_destroyed_by_sword = false;
+            move_remainder_x = 0;
+            move_remainder_y = 0;
+            lifetimeTimer = lifetime_max;
             ds_list_clear(hit_list);
 
             if (!was_parried) {
                 damage *= parry_damage_multiplier;
                 was_parried = true;
+            }
+
+            if (parry_reflect_kills_original_owner
+            && instance_exists(original_owner)
+            && variable_instance_exists(original_owner, "hp")) {
+                damage = max(damage, original_owner.hp);
             }
 
             // Saca el proyectil de la caja del jugador antes del próximo Step.
@@ -194,6 +214,18 @@ projectile_should_destroy_after_hit = function(_hit_result) {
 projectile_find_target = function() {
     if (parry_ignore_player_timer > 0 && target_object == obj_player) {
         return noone;
+    }
+
+    // Un reflect solo puede golpear a quien lanzó originalmente el proyectil.
+    if (was_parried
+    && parry_result == PARRY_REFLECT
+    && instance_exists(original_owner)) {
+        var _touches_original_owner =
+               x + hit_radius >= original_owner.bbox_left
+            && x - hit_radius <= original_owner.bbox_right
+            && y + hit_radius >= original_owner.bbox_top
+            && y - hit_radius <= original_owner.bbox_bottom;
+        return _touches_original_owner ? original_owner : noone;
     }
 
     return collision_rectangle(
